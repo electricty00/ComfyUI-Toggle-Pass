@@ -73,8 +73,14 @@ function syncInputs(node, cfg, target) {
         for (let i = 0; i < inputs.length; i++) if (inputs[i].type === cfg.inputType) idx.push(i);
         for (let i = 0; i < count - target; i++) node.removeInput(idx[idx.length - 1 - i]);
     }
-    node.setSize(node.computeSize());
-    app.graph.change();
+    // 双层 rAF 确保在 Vue 渲染周期完成后设置尺寸
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const s = node.computeSize();
+            node.setSize([s[0], s[1]]);
+            app.graph.change();
+        });
+    });
 }
 
 /* ============ Ref Independent（四项同步增删）============ */
@@ -166,5 +172,12 @@ function applyRefInd(node, n) {
     }
 
     node.setSize(node.computeSize());
-    app.graph.change();
+    // 双层 rAF 确保在 Vue 渲染周期完成后设置尺寸
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const s = node.computeSize();
+            node.setSize([s[0], s[1]]);
+            app.graph.change();
+        });
+    });
 }
