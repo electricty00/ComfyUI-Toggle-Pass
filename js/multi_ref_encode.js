@@ -17,6 +17,7 @@
 import { app } from "../../scripts/app.js";
 
 const EXT_NAME = "ComfyUI-Toggle-Pass";
+const FIXED_WIDTH = 300;
 
 /* ============ 通用节点（DynamicRefLatentInput / ImageBatcher / DynamicRefImageEncode）============ */
 
@@ -26,14 +27,49 @@ const DYNAMIC_NODES = {
     "DynamicRefImageEncode":  { widget: "num_images",  inputType: "IMAGE",  max: 10, prefix: "image"  },
 };
 
+/**
+ * 强制固定节点宽度为 FIXED_WIDTH
+ * 方法：劫持 setSize，以及用 setTimeout 多轮覆盖
+ */
+function enforceWidth(node) {
+    // 劫持 setSize
+    const origSetSize = node.setSize;
+    node.setSize = function (size) {
+        if (Array.isArray(size)) {
+            origSetSize.call(this, [FIXED_WIDTH, size[1]]);
+        } else {
+            origSetSize.call(this, size);
+        }
+    };
+    // 立即设置一次
+    node.setSize([FIXED_WIDTH, node.size[1]]);
+    // 多轮 setTimeout 覆盖 Vue 渲染后的修改
+    for (let i = 0; i < 10; i++) {
+        setTimeout(() => {
+            if (node.size[0] !== FIXED_WIDTH) {
+                node.size[0] = FIXED_WIDTH;
+                app.graph.change();
+            }
+        }, i * 100);
+    }
+}
+
 app.registerExtension({
     name: EXT_NAME + "-generic",
     beforeRegisterNodeDef(nodeType, nodeData, app) {
         const cfg = DYNAMIC_NODES[nodeData.name];
         if (!cfg) return;
 
-        // 强制固定宽度 300，高度自适应
-        const FIXED_WIDTH = 300;
+        // 劫持 setSize，强制固定宽度
+        const origSetSize = nodeType.prototype.setSize;
+        nodeType.prototype.setSize = function (size) {
+            if (Array.isArray(size)) {
+                size = [FIXED_WIDTH, size[1]];
+            }
+            return origSetSize.call(this, size);
+        };
+
+        // computeSize 也返回固定宽度
         const origComputeSize = nodeType.prototype.computeSize;
         nodeType.prototype.computeSize = function () {
             const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
@@ -47,6 +83,7 @@ app.registerExtension({
             requestAnimationFrame(() => {
                 const w = this.widgets?.find(w => w.name === cfg.widget);
                 if (w) syncInputs(this, cfg, Math.max(1, Math.min(cfg.max, w.value || 1)));
+                enforceWidth(this);
             });
         };
 
@@ -57,6 +94,7 @@ app.registerExtension({
             if (this._tpInit) return;
             this._tpInit = true;
             this.setSize([FIXED_WIDTH, this.computeSize()[1]]);
+            enforceWidth(this);
             const w = this.widgets?.find(w => w.name === cfg.widget);
             if (!w) return;
             syncInputs(this, cfg, Math.max(1, Math.min(cfg.max, w.value || 1)));
@@ -64,6 +102,7 @@ app.registerExtension({
             w.callback = function (v) {
                 if (prev) prev.call(this, v);
                 syncInputs(this._node || this, cfg, Math.max(1, Math.min(cfg.max, v || 1)));
+                enforceWidth(this._node || this);
             };
         };
     },
@@ -73,7 +112,7 @@ function syncInputs(node, cfg, target) {
     const inputs = node.inputs || [];
     let count = 0;
     for (const inp of inputs) if (inp.type === cfg.inputType) count++;
-    if (count === target) return;
+    if (count === target) { enforceWidth(node); return; }
 
     if (count < target) {
         for (let i = count + 1; i <= target; i++) node.addInput(`${cfg.prefix}${i}`, cfg.inputType);
@@ -82,11 +121,10 @@ function syncInputs(node, cfg, target) {
         for (let i = 0; i < inputs.length; i++) if (inputs[i].type === cfg.inputType) idx.push(i);
         for (let i = 0; i < count - target; i++) node.removeInput(idx[idx.length - 1 - i]);
     }
-    // 固定宽度，只调高度，避免 computeSize 返回的宽高比丑
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            const s = node.computeSize();
-            node.setSize([300, s[1]]);
+            node.setSize([FIXED_WIDTH, node.computeSize()[1]]);
+            enforceWidth(node);
             app.graph.change();
         });
     });
@@ -99,16 +137,23 @@ app.registerExtension({
     beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "DynamicRefIndependent") return;
 
-        // 强制固定宽度 300，高度自适应
-        const FIXED_WIDTH = 300;
+        // 劫持 setSize，强制固定宽度
+        const origSetSize = nodeType.prototype.setSize;
+        nodeType.prototype.setSize = function (size) {
+            if (Array.isArray(size)) {
+                size = [FIXED_WIDTH, size[1]];
+            }
+            return origSetSize.call(this, size);
+        };
+
+        // computeSize 也返回固定宽度
         const origComputeSize = nodeType.prototype.computeSize;
         nodeType.prototype.computeSize = function () {
             const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
             return [FIXED_WIDTH, Array.isArray(s) ? s[1] : s];
         };
 
-        // onConfigure：从 JSON 恢复后触发，此时 widget 值已正确，输出槽为后端全量（20个）
-        // 用 w.value 裁剪到 N*2 个
+        // onConfigure：从 JSON 恢复后触发
         const origConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
             origConfigure?.apply(this, arguments);
@@ -117,6 +162,7 @@ app.registerExtension({
                 if (!w) return;
                 const n = Math.max(1, Math.min(10, w.value || 1));
                 applyRefInd(this, n);
+                enforceWidth(this);
             });
         };
 
@@ -127,6 +173,7 @@ app.registerExtension({
             if (this._tpRefInd) return;
             this._tpRefInd = true;
             this.setSize([FIXED_WIDTH, this.computeSize()[1]]);
+            enforceWidth(this);
             const w = this.widgets?.find(w => w.name === "num_images");
             if (!w) return;
             const n = Math.max(1, Math.min(10, w.value || 1));
@@ -135,6 +182,7 @@ app.registerExtension({
             w.callback = function (v) {
                 if (prev) prev.call(this, v);
                 applyRefInd(this._node || this, Math.max(1, Math.min(10, v || 1)));
+                enforceWidth(this._node || this);
             };
         };
     },
@@ -145,11 +193,6 @@ app.registerExtension({
  *   1. IMAGE 输入槽：image1 ~ imageN（增删）
  *   2. prompt 控件：prompt1 ~ promptN（hidden 显示/隐藏）
  *   3. 输出槽：cond_1, latent1, cond_2, latent2, ..., cond_N, latentN（增删，交替排列）
- *
- * 关键：输出顺序必须和后端 RETURN_TYPES 交替排列一致：
- *   RETURN_TYPES = (CONDITIONING, LATENT, CONDITIONING, LATENT, ...)
- *   后端固定 20 个输出，前端通过 removeOutput 裁剪到 N*2 个
- *   裁剪时从末尾移除，保留前 N*2 个（index 0~2N-1），这样已有连线不受影响
  */
 function applyRefInd(node, n) {
     // ---- 1. 增删 IMAGE 输入槽 ----
@@ -173,13 +216,10 @@ function applyRefInd(node, n) {
     }
 
     // ---- 3. 调整输出槽 ----
-    // 后端固定 20 个输出（10 对 cond_X/latentX），需要裁剪到 N*2 个
-    // 策略：只从末尾 removeOutput，不重建前面的，保护已有连线
     const expectedCount = n * 2;
     while (node.outputs && node.outputs.length > expectedCount) {
         node.removeOutput(node.outputs.length - 1);
     }
-    // 如果不够（理论上不应该发生，除非后端定义改了），补齐
     while (node.outputs && node.outputs.length < expectedCount) {
         const i = Math.floor(node.outputs.length / 2) + 1;
         if (node.outputs.length % 2 === 0) {
@@ -189,11 +229,10 @@ function applyRefInd(node, n) {
         }
     }
 
-    // 固定宽度 300，只调高度
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            const s = node.computeSize();
-            node.setSize([300, s[1]]);
+            node.setSize([FIXED_WIDTH, node.computeSize()[1]]);
+            enforceWidth(node);
             app.graph.change();
         });
     });
