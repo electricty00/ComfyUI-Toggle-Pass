@@ -32,6 +32,14 @@ app.registerExtension({
         const cfg = DYNAMIC_NODES[nodeData.name];
         if (!cfg) return;
 
+        // 强制固定宽度 300，高度自适应
+        const FIXED_WIDTH = 300;
+        const origComputeSize = nodeType.prototype.computeSize;
+        nodeType.prototype.computeSize = function () {
+            const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
+            return [FIXED_WIDTH, Array.isArray(s) ? s[1] : s];
+        };
+
         // onConfigure：从 JSON 恢复后触发，widget 值已正确
         const origConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
@@ -48,6 +56,7 @@ app.registerExtension({
             origCreated?.apply(this, arguments);
             if (this._tpInit) return;
             this._tpInit = true;
+            this.setSize([FIXED_WIDTH, this.computeSize()[1]]);
             const w = this.widgets?.find(w => w.name === cfg.widget);
             if (!w) return;
             syncInputs(this, cfg, Math.max(1, Math.min(cfg.max, w.value || 1)));
@@ -90,6 +99,14 @@ app.registerExtension({
     beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "DynamicRefIndependent") return;
 
+        // 强制固定宽度 300，高度自适应
+        const FIXED_WIDTH = 300;
+        const origComputeSize = nodeType.prototype.computeSize;
+        nodeType.prototype.computeSize = function () {
+            const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
+            return [FIXED_WIDTH, Array.isArray(s) ? s[1] : s];
+        };
+
         // onConfigure：从 JSON 恢复后触发，此时 widget 值已正确，输出槽为后端全量（20个）
         // 用 w.value 裁剪到 N*2 个
         const origConfigure = nodeType.prototype.onConfigure;
@@ -109,6 +126,7 @@ app.registerExtension({
             origCreated?.apply(this, arguments);
             if (this._tpRefInd) return;
             this._tpRefInd = true;
+            this.setSize([FIXED_WIDTH, this.computeSize()[1]]);
             const w = this.widgets?.find(w => w.name === "num_images");
             if (!w) return;
             const n = Math.max(1, Math.min(10, w.value || 1));
