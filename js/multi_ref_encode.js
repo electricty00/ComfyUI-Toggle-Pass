@@ -73,11 +73,11 @@ function syncInputs(node, cfg, target) {
         for (let i = 0; i < inputs.length; i++) if (inputs[i].type === cfg.inputType) idx.push(i);
         for (let i = 0; i < count - target; i++) node.removeInput(idx[idx.length - 1 - i]);
     }
-    // 双层 rAF 确保在 Vue 渲染周期完成后设置尺寸
+    // 固定宽度，只调高度，避免 computeSize 返回的宽高比丑
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             const s = node.computeSize();
-            node.setSize([s[0], s[1]]);
+            node.setSize([300, s[1]]);
             app.graph.change();
         });
     });
@@ -171,12 +171,11 @@ function applyRefInd(node, n) {
         }
     }
 
-    node.setSize(node.computeSize());
-    // 双层 rAF 确保在 Vue 渲染周期完成后设置尺寸
+    // 固定宽度 300，只调高度
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             const s = node.computeSize();
-            node.setSize([s[0], s[1]]);
+            node.setSize([300, s[1]]);
             app.graph.change();
         });
     });
