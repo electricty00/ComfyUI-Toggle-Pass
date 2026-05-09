@@ -28,29 +28,66 @@ const DYNAMIC_NODES = {
 };
 
 /**
- * 强制固定节点宽度为 FIXED_WIDTH
- * 方法：劫持 setSize，以及用 setTimeout 多轮覆盖
+ * 对指定节点启动宽度锁定：
+ *   - 劫持 setSize（处理数组和双参数两种调用形式）
+ *   - 重写 computeSize 返回固定宽度
+ *   - setInterval 每 100ms 强制校正 node.size[0]
+ *   - onRemove 时清理 interval
  */
-function enforceWidth(node) {
-    // 劫持 setSize
-    const origSetSize = node.setSize;
-    node.setSize = function (size) {
-        if (Array.isArray(size)) {
-            origSetSize.call(this, [FIXED_WIDTH, size[1]]);
-        } else {
-            origSetSize.call(this, size);
-        }
-    };
-    // 立即设置一次
-    node.setSize([FIXED_WIDTH, node.size[1]]);
-    // 多轮 setTimeout 覆盖 Vue 渲染后的修改
-    for (let i = 0; i < 10; i++) {
-        setTimeout(() => {
-            if (node.size[0] !== FIXED_WIDTH) {
-                node.size[0] = FIXED_WIDTH;
-                app.graph.change();
+function startWidthLock(node) {
+    console.log(`[Toggle-Pass] startWidthLock on ${node.type} #${node.id}`);
+
+    // 1. 劫持 setSize（处理两种调用形式）
+    if (!node._tpSetSizeHijacked) {
+        node._tpSetSizeHijacked = true;
+        const origSetSize = node.setSize;
+        node.setSize = function (a, b) {
+            if (Array.isArray(a)) {
+                a = [FIXED_WIDTH, a[1]];
+                return origSetSize.call(this, a);
+            } else if (typeof a === "number" && typeof b === "number") {
+                return origSetSize.call(this, FIXED_WIDTH, b);
+            } else {
+                return origSetSize.call(this, a, b);
             }
-        }, i * 100);
+        };
+    }
+
+    // 2. 重写 computeSize
+    if (!node._tpComputeSizeHijacked) {
+        node._tpComputeSizeHijacked = true;
+        const origComputeSize = node.computeSize;
+        node.computeSize = function () {
+            const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
+            if (Array.isArray(s)) {
+                return [FIXED_WIDTH, s[1]];
+            }
+            return [FIXED_WIDTH, s];
+        };
+    }
+
+    // 3. 立即设置一次
+    node.size[0] = FIXED_WIDTH;
+    node.setSize(node.size[0], node.size[1]);
+
+    // 4. setInterval 持续校正（每 100ms）
+    if (!node._tpIntervalId) {
+        node._tpIntervalId = setInterval(() => {
+            if (node.size && node.size[0] !== FIXED_WIDTH) {
+                console.log(`[Toggle-Pass] correcting width: ${node.size[0]} -> ${FIXED_WIDTH}`);
+                node.size[0] = FIXED_WIDTH;
+            }
+        }, 100);
+
+        // 5. onRemove 时清理 interval
+        const origOnRemoved = node.onRemoved;
+        node.onRemoved = function () {
+            if (node._tpIntervalId) {
+                clearInterval(node._tpIntervalId);
+                node._tpIntervalId = null;
+            }
+            origOnRemoved?.apply(this, arguments);
+        };
     }
 }
 
@@ -60,49 +97,32 @@ app.registerExtension({
         const cfg = DYNAMIC_NODES[nodeData.name];
         if (!cfg) return;
 
-        // 劫持 setSize，强制固定宽度
-        const origSetSize = nodeType.prototype.setSize;
-        nodeType.prototype.setSize = function (size) {
-            if (Array.isArray(size)) {
-                size = [FIXED_WIDTH, size[1]];
-            }
-            return origSetSize.call(this, size);
-        };
-
-        // computeSize 也返回固定宽度
-        const origComputeSize = nodeType.prototype.computeSize;
-        nodeType.prototype.computeSize = function () {
-            const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
-            return [FIXED_WIDTH, Array.isArray(s) ? s[1] : s];
-        };
-
-        // onConfigure：从 JSON 恢复后触发，widget 值已正确
+        // onConfigure：从 JSON 恢复后触发
         const origConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
             origConfigure?.apply(this, arguments);
             requestAnimationFrame(() => {
                 const w = this.widgets?.find(w => w.name === cfg.widget);
                 if (w) syncInputs(this, cfg, Math.max(1, Math.min(cfg.max, w.value || 1)));
-                enforceWidth(this);
+                startWidthLock(this);
             });
         };
 
-        // onNodeCreated：新拖入的节点（无 JSON 恢复），用默认值初始化
+        // onNodeCreated：新拖入的节点
         const origCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             origCreated?.apply(this, arguments);
             if (this._tpInit) return;
             this._tpInit = true;
-            this.setSize([FIXED_WIDTH, this.computeSize()[1]]);
-            enforceWidth(this);
             const w = this.widgets?.find(w => w.name === cfg.widget);
             if (!w) return;
             syncInputs(this, cfg, Math.max(1, Math.min(cfg.max, w.value || 1)));
+            startWidthLock(this);
             const prev = w.callback;
             w.callback = function (v) {
                 if (prev) prev.call(this, v);
                 syncInputs(this._node || this, cfg, Math.max(1, Math.min(cfg.max, v || 1)));
-                enforceWidth(this._node || this);
+                startWidthLock(this._node || this);
             };
         };
     },
@@ -112,7 +132,7 @@ function syncInputs(node, cfg, target) {
     const inputs = node.inputs || [];
     let count = 0;
     for (const inp of inputs) if (inp.type === cfg.inputType) count++;
-    if (count === target) { enforceWidth(node); return; }
+    if (count === target) { startWidthLock(node); return; }
 
     if (count < target) {
         for (let i = count + 1; i <= target; i++) node.addInput(`${cfg.prefix}${i}`, cfg.inputType);
@@ -123,8 +143,8 @@ function syncInputs(node, cfg, target) {
     }
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            node.setSize([FIXED_WIDTH, node.computeSize()[1]]);
-            enforceWidth(node);
+            node.setSize(node.size[0], node.computeSize()[1]);
+            startWidthLock(node);
             app.graph.change();
         });
     });
@@ -137,22 +157,6 @@ app.registerExtension({
     beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "DynamicRefIndependent") return;
 
-        // 劫持 setSize，强制固定宽度
-        const origSetSize = nodeType.prototype.setSize;
-        nodeType.prototype.setSize = function (size) {
-            if (Array.isArray(size)) {
-                size = [FIXED_WIDTH, size[1]];
-            }
-            return origSetSize.call(this, size);
-        };
-
-        // computeSize 也返回固定宽度
-        const origComputeSize = nodeType.prototype.computeSize;
-        nodeType.prototype.computeSize = function () {
-            const s = origComputeSize ? origComputeSize.call(this) : [FIXED_WIDTH, 100];
-            return [FIXED_WIDTH, Array.isArray(s) ? s[1] : s];
-        };
-
         // onConfigure：从 JSON 恢复后触发
         const origConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
@@ -162,18 +166,17 @@ app.registerExtension({
                 if (!w) return;
                 const n = Math.max(1, Math.min(10, w.value || 1));
                 applyRefInd(this, n);
-                enforceWidth(this);
+                startWidthLock(this);
             });
         };
 
-        // onNodeCreated：新拖入的节点（首次创建，无 JSON 恢复）
+        // onNodeCreated：新拖入的节点
         const origCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             origCreated?.apply(this, arguments);
             if (this._tpRefInd) return;
             this._tpRefInd = true;
-            this.setSize([FIXED_WIDTH, this.computeSize()[1]]);
-            enforceWidth(this);
+            startWidthLock(this);
             const w = this.widgets?.find(w => w.name === "num_images");
             if (!w) return;
             const n = Math.max(1, Math.min(10, w.value || 1));
@@ -182,18 +185,12 @@ app.registerExtension({
             w.callback = function (v) {
                 if (prev) prev.call(this, v);
                 applyRefInd(this._node || this, Math.max(1, Math.min(10, v || 1)));
-                enforceWidth(this._node || this);
+                startWidthLock(this._node || this);
             };
         };
     },
 });
 
-/**
- * Ref Independent：同步增删
- *   1. IMAGE 输入槽：image1 ~ imageN（增删）
- *   2. prompt 控件：prompt1 ~ promptN（hidden 显示/隐藏）
- *   3. 输出槽：cond_1, latent1, cond_2, latent2, ..., cond_N, latentN（增删，交替排列）
- */
 function applyRefInd(node, n) {
     // ---- 1. 增删 IMAGE 输入槽 ----
     const inputs = node.inputs || [];
@@ -231,8 +228,8 @@ function applyRefInd(node, n) {
 
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            node.setSize([FIXED_WIDTH, node.computeSize()[1]]);
-            enforceWidth(node);
+            node.setSize(node.size[0], node.computeSize()[1]);
+            startWidthLock(node);
             app.graph.change();
         });
     });
