@@ -62,14 +62,25 @@ app.registerExtension({
 
             const [w] = this.size;
             const titleH = LiteGraph.NODE_TITLE_HEIGHT || 30;
-            // 隐私开启 = 捂眼，隐私关闭 = 睁眼
             const icon = this[PRIVACY_KEY] ? "🫣" : "👁";
+
+            // 折叠时标题栏视觉宽度 ≠ this.size[0]，用标题文字宽度 + padding 估算
+            let iconX;
+            if (this.flags?.collapsed) {
+                const textW = ctx.measureText(this.title || "").width;
+                const barW = textW + 30; // 左侧padding(8) + 右侧padding(8) + 预留空间
+                iconX = barW - BTN_MARGIN;
+            } else {
+                iconX = w - BTN_MARGIN;
+            }
+            // 缓存，供 onMouseDown 使用
+            this._privacyBtnRight = iconX;
 
             ctx.save();
             ctx.font = `${BTN_SIZE}px Arial`;
             ctx.textAlign = "right";
             ctx.textBaseline = "middle";
-            ctx.fillText(icon, w - BTN_MARGIN, -titleH / 2);
+            ctx.fillText(icon, iconX, -titleH / 2);
             ctx.restore();
         };
 
@@ -77,9 +88,9 @@ app.registerExtension({
         const origMouseDown = nodeType.prototype.onMouseDown;
         nodeType.prototype.onMouseDown = function (e, pos, canvas) {
             const titleH = LiteGraph.NODE_TITLE_HEIGHT || 30;
-            const [w] = this.size;
+            const iconRight = this._privacyBtnRight || this.size[0];
 
-            if (pos[1] >= -titleH && pos[1] <= 0 && pos[0] >= w - 28 && pos[0] <= w) {
+            if (pos[1] >= -titleH && pos[1] <= 0 && pos[0] >= iconRight - 28 && pos[0] <= iconRight) {
                 this[PRIVACY_KEY] = !this[PRIVACY_KEY];
                 if (this[PRIVACY_KEY]) {
                     this._hiddenImgs = this.imgs;

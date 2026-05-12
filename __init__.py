@@ -3,6 +3,7 @@ ComfyUI Toggle Pass - Toggle nodes + Image IO + Multi-Ref Encode
 Author: Clever
 """
 from .multi_ref_encode import NODE_CLASS_MAPPINGS as MULTI_REF_NODES, NODE_DISPLAY_NAME_MAPPINGS as MULTI_REF_NAMES
+from .unified_loader import NODE_CLASS_MAPPINGS as UNIFIED_NODES, NODE_DISPLAY_NAME_MAPPINGS as UNIFIED_NAMES
 
 import os
 import json
@@ -330,6 +331,7 @@ class ToggleEmptyLatent:
 
 NODE_CLASS_MAPPINGS = {
     **MULTI_REF_NODES,
+    **UNIFIED_NODES,
     "ToggleEmptyLatent": ToggleEmptyLatent,
     "SaveLoadImage": SaveLoadImage,
     "ToggleLoadImage": ToggleLoadImage,
@@ -338,6 +340,7 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     **MULTI_REF_NAMES,
+    **UNIFIED_NAMES,
     "ToggleEmptyLatent": "Toggle Empty Latent",
     "SaveLoadImage": "Save/Load Image",
     "ToggleLoadImage": "Toggle Load Image",
