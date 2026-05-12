@@ -10,6 +10,7 @@ import math
 import torch
 import comfy.utils
 import node_helpers
+import comfy.model_management
 
 
 class DynamicRefImageEncode:
@@ -43,10 +44,11 @@ class DynamicRefImageEncode:
             },
             "optional": {
                 **opt,
-                "模型类型": (["Flux2", "SD / SDXL"], {"default": "Flux2"}),
+                "模型类型": (["Flux2", "Qwen Layered", "SD / SDXL"], {"default": "Flux2"}),
                 "匹配原图尺寸": (["OFF", "ON"], {"default": "OFF"}),
                 "输出宽度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
                 "输出高度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
+                "图层数": ("INT", {"default": 3, "min": 1, "max": 64, "step": 1}),
             },
         }
 
@@ -72,9 +74,30 @@ class DynamicRefImageEncode:
         content = content.replace("{}", "")
         return prefix + content + suffix
 
+    def _make_empty_latent(self, 模型类型, width, height, layers=3):
+        """根据模型类型生成空 latent。Qwen Layered 输出分层格式。"""
+        if 模型类型 == "Qwen Layered":
+            channels = 16
+            dim3 = layers + 1
+            h = height // 8
+            w = width // 8
+            latent = torch.zeros(
+                [1, channels, dim3, h, w],
+                device=comfy.model_management.intermediate_device(),
+            )
+        elif 模型类型 == "Flux2":
+            h = height // 16
+            w = width // 16
+            latent = torch.zeros(1, 4, h, w)
+        else:
+            h = height // 8
+            w = width // 8
+            latent = torch.zeros(1, 4, h, w)
+        return {"samples": latent}
+
     def encode(self, clip, num_images, prompt, instruction="",
                vae=None, 模型类型="Flux2", 匹配原图尺寸="OFF",
-               输出宽度=1024, 输出高度=1024, **kwargs):
+               输出宽度=1024, 输出高度=1024, 图层数=3, **kwargs):
 
         n = max(1, min(10, int(num_images)))
         llama_template = self._get_system_prompt(instruction)
@@ -82,6 +105,8 @@ class DynamicRefImageEncode:
         ref_latents = []
         vl_images = []
         image_prompt = ""
+        first_img_w = 0
+        first_img_h = 0
 
         for i in range(1, n + 1):
             image = kwargs.get(f"image{i}", None)
@@ -97,6 +122,10 @@ class DynamicRefImageEncode:
             else:
                 pixel_width = 输出宽度
                 pixel_height = 输出高度
+
+            # 记录最后一张有效图的原始像素尺寸
+            first_img_w = samples.shape[3]
+            first_img_h = samples.shape[2]
 
             if vae is not None:
                 s = comfy.utils.common_upscale(samples, pixel_width, pixel_height, "lanczos", "center")
@@ -126,12 +155,17 @@ class DynamicRefImageEncode:
                 {"reference_latents": ref_latents},
                 append=True,
             )
+
+        # Qwen Layered 模式：始终输出分层 latent
+        if 模型类型 == "Qwen Layered":
+            if 匹配原图尺寸 == "ON" and first_img_w > 0:
+                latent_out = self._make_empty_latent(模型类型, first_img_w, first_img_h, 图层数)
+            else:
+                latent_out = self._make_empty_latent(模型类型, 输出宽度, 输出高度, 图层数)
+        elif len(ref_latents) > 0:
             latent_out = {"samples": ref_latents[0]}
         else:
-            scale = 16 if 模型类型 == "Flux2" else 8
-            lw = 输出宽度 // scale
-            lh = 输出高度 // scale
-            latent_out = {"samples": torch.zeros(1, 4, lh, lw)}
+            latent_out = self._make_empty_latent(模型类型, 输出宽度, 输出高度, 图层数)
 
         return (conditioning, latent_out)
 

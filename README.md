@@ -7,9 +7,30 @@
 <a id="english"></a>
 ## English
 
-Toggle-Pass node collection — toggle controls, image load/save/preview, privacy mask, and dynamic multi-reference image encoding.
+Toggle-Pass node collection — toggle controls, image load/save/preview, privacy mask, dynamic multi-reference image encoding, and unified model loader.
 
 ### Nodes
+
+#### ToggleUnifiedLoader — Unified Model + LoRA Loader
+
+All-in-one model loading node: UNet + CLIP + VAE + multiple LoRAs in a single node.
+
+**Inputs**:
+- `unet_name` — UNet model file
+- `clip_name` — CLIP text encoder file
+- `vae_name` — VAE model file
+- `clip_type` — CLIP type (auto-detect from UNet, or manually select: SD, SD3, FLUX, FLUX2, etc.)
+- `+ Add LoRA` button — Click to add LoRA slots one by one (up to 10)
+- `- Remove LoRA` button — Click to remove LoRA slots from the last group (up to 10)
+
+**LoRA Controls** (added via button, up to 10 groups):
+- Select a LoRA file → strength sliders appear automatically
+- Select "none" → strength sliders hide
+- All LoRAs are applied sequentially
+
+**Outputs**: `MODEL`, `CLIP`, `VAE`
+
+---
 
 #### SaveLoadImage — Save/Load Toggle
 
@@ -66,6 +87,10 @@ Single prompt control, dynamically add/remove reference image input slots.
 **Inputs**: `clip`, `num_images`, `prompt`, `image1` ~ `imageN`
 **Outputs**: `CONDITIONING`, `LATENT` (all images share the same conditioning, latents output separately)
 
+**Model type**: Choose from `Flux2` / `Qwen Layered` / `SD / SDXL`
+- `Qwen Layered`: Adds a `layers` parameter; latent output is a layered latent (`[1, 16, layers+1, h/8, w/8]`), directly connectable to Ksampler's latent input (replaces `EmptyQwenImageLayeredLatentImage`)
+- When `匹配原图尺寸` = ON, uses the actual image size; when OFF, uses `输出宽度/高度` settings
+
 #### DynamicRefLatentInput — Dynamic Latent Input
 
 Dynamically add/remove LATENT input slots, for use with DynamicRef series.
@@ -101,9 +126,30 @@ SaveLoadImage, ToggleLoadImage, and TogglePreviewImage support privacy mask:
 <a id="中文"></a>
 ## 中文
 
-Toggle-Pass 系列节点——开关控制、图片加载/保存/预览、隐私遮罩、多参考图动态编码。
+Toggle-Pass 系列节点——开关控制、图片加载/保存/预览、隐私遮罩、多参考图动态编码、统一模型加载。
 
 ### 节点说明
+
+#### ToggleUnifiedLoader — 统一模型 + LoRA 加载器
+
+一体化模型加载节点：UNet + CLIP + VAE + 多 LoRA 整合到一个节点中。
+
+**输入**：
+- `unet_name` — UNet 模型文件
+- `clip_name` — CLIP 文本编码器文件
+- `vae_name` — VAE 模型文件
+- `clip_type` — CLIP 类型（支持 auto 从 UNet 自动检测，也可手动选择：SD、SD3、FLUX、FLUX2 等）
+- `+ 添加 LoRA` 按钮 — 点击逐个添加 LoRA 槽位（最多 10 组）
+- `- 移除 LoRA` 按钮 — 点击从最后一组开始移除（最多 10 组）
+
+**LoRA 控件**（通过按钮添加，最多 10 组）：
+- 选择 LoRA 文件 → 自动展开 strength 滑块
+- 选择 "none" → 自动隐藏 strength 滑块
+- 多个 LoRA 按顺序依次应用
+
+**输出**：`MODEL`、`CLIP`、`VAE`
+
+---
 
 #### SaveLoadImage — 保存/加载切换
 
@@ -160,6 +206,10 @@ Toggle-Pass 系列节点——开关控制、图片加载/保存/预览、隐私
 **输入**：`clip`, `num_images`, `prompt`, `image1` ~ `imageN`
 **输出**：`CONDITIONING`, `LATENT`（所有图共享同一份 conditioning，分别输出 latent）
 
+**模型类型**：可选 `Flux2` / `Qwen Layered` / `SD / SDXL`
+- `Qwen Layered`：增加「图层数」参数；输出的 latent 为分层格式（`[1, 16, layers+1, h/8, w/8]`），可直接接到 K采样器的 latent 输入（省掉 `EmptyQwenImageLayeredLatentImage` 节点）
+- 「匹配原图尺寸」= ON 时，使用图片实际尺寸；= OFF 时，使用「输出宽度/高度」设置值
+
 #### DynamicRefLatentInput — 动态 Latent 输入
 
 动态增删 LATENT 输入槽，配合 DynamicRef 系列使用。
@@ -193,6 +243,17 @@ SaveLoadImage、ToggleLoadImage、TogglePreviewImage 三个节点均支持隐私
 ---
 
 ## 更新日志 / Changelog
+
+### 2026-05-12
+- DynamicRefImageEncode 新增 `Qwen Layered` 模型类型
+  - 选中后显示「图层数」参数，输出分层 latent（`[1, 16, layers+1, h/8, w/8]`），可直接接到 K 采样器
+  - 「匹配原图尺寸」开关正常工作（ON 用图片实际尺寸，OFF 用输出宽度/高度）
+- ToggleUnifiedLoader 新增「- 移除 LoRA」按钮，从最后一组开始移除
+
+### 2026-05-10
+- 新增 ToggleUnifiedLoader（统一模型 + LoRA 加载器）：整合 UNet/CLIP/VAE/多 LoRA 到单一节点
+  - 支持按钮动态添加 LoRA 槽位（最多 10 组），选了才显示
+  - 支持自动检测 CLIP 类型（从 UNet 模型文件），也支持手动选择
 
 ### 2026-05-08
 - 新增 SaveLoadImage（保存/加载切换）、ToggleLoadImage（加载图片）、TogglePreviewImage（预览图片）、ToggleEmptyLatent（开关空 Latent）节点
