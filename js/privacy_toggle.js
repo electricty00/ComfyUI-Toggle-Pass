@@ -61,6 +61,27 @@ app.registerExtension({
     beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (!TARGET_NODES.includes(nodeData.name)) return;
 
+        // ===== 新建节点时兜一个正常尺寸 =====
+        // TogglePreviewImage 只有 1 个 IMAGE 输入、没有 widget，computeSize() 只算出
+        // 约 26px 高 —— 添加后看起来像被"折叠"成一条。这里仅在「新建」时兜底；
+        // 加载已有工作流时 onConfigure 会把用户自己存的 size 恢复回来，不受影响。
+        if (nodeData.name === "TogglePreviewImage") {
+            const origCreated = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                origCreated?.apply(this, arguments);
+                const cs = this.computeSize();
+                // 与 Toggle Load Image 的初始尺寸保持一致（实测 270×102）
+                const w = Math.max(cs[0], 270);
+                const h = Math.max(cs[1], 102);
+                const sw = Number(this.size?.[0]);
+                const sh = Number(this.size?.[1]);
+                if (!Number.isFinite(sw) || !Number.isFinite(sh) || sw < w - 0.5 || sh < h - 0.5) {
+                    this.setSize([w, h]);
+                    this.setDirtyCanvas?.(true, true);
+                }
+            };
+        }
+
         // ===== 序列化 =====
         const origSerialize = nodeType.prototype.serialize;
         nodeType.prototype.serialize = function () {
