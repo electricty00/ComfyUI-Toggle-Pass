@@ -103,7 +103,7 @@ app.registerExtension({
         try {
             const nodes = collectTogglePassNodes();
             if (!nodes.length) return [];
-            return [
+            const items = [
                 {
                     content: MENU_LABEL,
                     has_submenu: true,
@@ -115,6 +115,19 @@ app.registerExtension({
                     },
                 },
             ];
+            // 素材库是运行时可变的（本机目录里丢进新姿势就多出来），给一个手动重扫入口。
+            // 平时不用点：节点自己每 15 秒比对一次指纹，变了就重建下拉。
+            if (nodes.some((n) => n.type === "PoseReference")) {
+                items.push({
+                    content: "🔄 刷新姿势素材库",
+                    callback: () => {
+                        if (typeof window.__tpRefreshPoses === "function") {
+                            window.__tpRefreshPoses();
+                        }
+                    },
+                });
+            }
+            return items;
         } catch (err) {
             console.error("[Toggle-Pass] getCanvasMenuItems failed:", err);
             return [];

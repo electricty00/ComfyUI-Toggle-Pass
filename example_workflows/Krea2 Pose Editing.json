@@ -1,0 +1,1422 @@
+{
+  "id": "ef71ff7c-e4bc-498d-b792-67032f8d0f50",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 14,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ToggleUnifiedLoader",
+      "pos": [
+        60,
+        120
+      ],
+      "size": [
+        210,
+        218
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "unet_name",
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip_name",
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip_type",
+          "name": "clip_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_1",
+          "name": "lora_name_1",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_1",
+          "name": "lora_strength_model_1",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_1",
+          "name": "lora_strength_clip_1",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_2",
+          "name": "lora_name_2",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_2",
+          "name": "lora_strength_model_2",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_2",
+          "name": "lora_strength_clip_2",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_3",
+          "name": "lora_name_3",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_3",
+          "name": "lora_strength_model_3",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_3",
+          "name": "lora_strength_clip_3",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_4",
+          "name": "lora_name_4",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_4",
+          "name": "lora_strength_model_4",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_4",
+          "name": "lora_strength_clip_4",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_5",
+          "name": "lora_name_5",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_5",
+          "name": "lora_strength_model_5",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_5",
+          "name": "lora_strength_clip_5",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_6",
+          "name": "lora_name_6",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_6",
+          "name": "lora_strength_model_6",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_6",
+          "name": "lora_strength_clip_6",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_7",
+          "name": "lora_name_7",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_7",
+          "name": "lora_strength_model_7",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_7",
+          "name": "lora_strength_clip_7",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_8",
+          "name": "lora_name_8",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_8",
+          "name": "lora_strength_model_8",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_8",
+          "name": "lora_strength_clip_8",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_9",
+          "name": "lora_name_9",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_9",
+          "name": "lora_strength_model_9",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_9",
+          "name": "lora_strength_clip_9",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name_10",
+          "name": "lora_name_10",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name_10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_model_10",
+          "name": "lora_strength_model_10",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_model_10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_strength_clip_10",
+          "name": "lora_strength_clip_10",
+          "type": "FLOAT",
+          "widget": {
+            "name": "lora_strength_clip_10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "加载模式",
+          "name": "加载模式",
+          "type": "COMBO",
+          "widget": {
+            "name": "加载模式"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ckpt_name",
+          "name": "ckpt_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "ckpt_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            6
+          ]
+        },
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1
+          ]
+        },
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            2,
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "ToggleUnifiedLoader"
+      },
+      "widgets_values": [
+        "Qwen-Image-2.1-aio-unet.safetensors",
+        "krea2\\krea2_turbo_fp8_scaled.safetensors",
+        "krea2\\qwen3vl_4b_fp8_scaled.safetensors",
+        "qwen_image_vae.safetensors",
+        "auto",
+        "分离组件 (UNet+CLIP+VAE)",
+        "krea2\\krea2_identity_edit_v2.safetensors",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        "none",
+        1,
+        1,
+        null,
+        null
+      ],
+      "widgets_values_named": {
+        "ckpt_name": "Qwen-Image-2.1-aio-unet.safetensors",
+        "unet_name": "krea2\\krea2_turbo_fp8_scaled.safetensors",
+        "clip_name": "krea2\\qwen3vl_4b_fp8_scaled.safetensors",
+        "vae_name": "qwen_image_vae.safetensors",
+        "clip_type": "auto",
+        "加载模式": "分离组件 (UNet+CLIP+VAE)",
+        "lora_name_1": "krea2\\krea2_identity_edit_v2.safetensors",
+        "lora_strength_model_1": 1,
+        "lora_strength_clip_1": 1,
+        "lora_name_2": "none",
+        "lora_strength_model_2": 1,
+        "lora_strength_clip_2": 1,
+        "lora_name_3": "none",
+        "lora_strength_model_3": 1,
+        "lora_strength_clip_3": 1,
+        "lora_name_4": "none",
+        "lora_strength_model_4": 1,
+        "lora_strength_clip_4": 1,
+        "lora_name_5": "none",
+        "lora_strength_model_5": 1,
+        "lora_strength_clip_5": 1,
+        "lora_name_6": "none",
+        "lora_strength_model_6": 1,
+        "lora_strength_clip_6": 1,
+        "lora_name_7": "none",
+        "lora_strength_model_7": 1,
+        "lora_strength_clip_7": 1,
+        "lora_name_8": "none",
+        "lora_strength_model_8": 1,
+        "lora_strength_clip_8": 1,
+        "lora_name_9": "none",
+        "lora_strength_model_9": 1,
+        "lora_strength_clip_9": 1,
+        "lora_name_10": "none",
+        "lora_strength_model_10": 1,
+        "lora_strength_clip_10": 1,
+        "_tp_add_lora_btn": null,
+        "_tp_rm_lora_btn": null
+      }
+    },
+    {
+      "id": 2,
+      "type": "ToggleLoadImage",
+      "pos": [
+        60,
+        780
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "upload",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4,
+            12
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "ToggleLoadImage"
+      },
+      "widgets_values": [
+        "20251213_210402.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "20251213_210402.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 3,
+      "type": "PoseReference",
+      "pos": [
+        420,
+        780
+      ],
+      "size": [
+        340,
+        508
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "category",
+          "name": "category",
+          "type": "COMBO",
+          "widget": {
+            "name": "category"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "group",
+          "name": "group",
+          "type": "COMBO",
+          "widget": {
+            "name": "group"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "pose",
+          "name": "pose",
+          "type": "COMBO",
+          "widget": {
+            "name": "pose"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "view",
+          "name": "view",
+          "type": "COMBO",
+          "widget": {
+            "name": "view"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "source",
+          "name": "source",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "source"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "long_edge",
+          "name": "long_edge",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "long_edge"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "flip",
+          "name": "flip",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "flip"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "PoseReference",
+        "tp_pose": {
+          "key": "全身单人・性感系|坐姿|P017_正坐・挺胸后仰|正面|线稿",
+          "img": "data:image/webp;base64,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"
+        }
+      },
+      "widgets_values": [
+        "全身单人・性感系",
+        "坐姿",
+        "P017_正坐・挺胸后仰",
+        "正面",
+        "线稿",
+        1024,
+        "关"
+      ],
+      "widgets_values_named": {
+        "category": "全身单人・性感系",
+        "group": "坐姿",
+        "pose": "P017_正坐・挺胸后仰",
+        "view": "正面",
+        "source": "线稿",
+        "long_edge": 1024,
+        "flip": "关"
+      }
+    },
+    {
+      "id": 4,
+      "type": "DynamicRefImageEncode",
+      "pos": [
+        780,
+        300
+      ],
+      "size": [
+        270,
+        322
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 2
+        },
+        {
+          "localized_name": "image1",
+          "name": "image1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "localized_name": "num_images",
+          "name": "num_images",
+          "type": "INT",
+          "widget": {
+            "name": "num_images"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "instruction",
+          "name": "instruction",
+          "type": "STRING",
+          "widget": {
+            "name": "instruction"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "模型类型",
+          "name": "模型类型",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "模型类型"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "匹配原图尺寸",
+          "name": "匹配原图尺寸",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "匹配原图尺寸"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "输出宽度",
+          "name": "输出宽度",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "输出宽度"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "输出高度",
+          "name": "输出高度",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "输出高度"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "尺寸适配",
+          "name": "尺寸适配",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "尺寸适配"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "图层数",
+          "name": "图层数",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "图层数"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "宽高比",
+          "name": "宽高比",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "宽高比"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "百万像素",
+          "name": "百万像素",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "百万像素"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "倍数",
+          "name": "倍数",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "倍数"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "参考图分辨率",
+          "name": "参考图分辨率",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "参考图分辨率"
+          },
+          "link": null
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "conditioning",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "DynamicRefImageEncode"
+      },
+      "widgets_values": [
+        2,
+        "Render the woman from image 2 in the exact pose of the mannequin in image 1: seated upright, chest lifted and leaning back, legs together, hands resting beside her hips. Keep her face, hair, white swimsuit and the beach background unchanged.",
+        "Describe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.",
+        "Krea2",
+        "OFF",
+        720,
+        1440,
+        "参考图保比例",
+        3,
+        "1:1 (Square)",
+        1,
+        32,
+        1024
+      ],
+      "widgets_values_named": {
+        "num_images": 2,
+        "prompt": "Render the woman from image 2 in the exact pose of the mannequin in image 1: seated upright, chest lifted and leaning back, legs together, hands resting beside her hips. Keep her face, hair, white swimsuit and the beach background unchanged.",
+        "instruction": "Describe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.",
+        "模型类型": "Krea2",
+        "匹配原图尺寸": "OFF",
+        "输出宽度": 720,
+        "输出高度": 1440,
+        "尺寸适配": "参考图保比例",
+        "图层数": 3,
+        "宽高比": "1:1 (Square)",
+        "百万像素": 1,
+        "倍数": 32,
+        "参考图分辨率": 1024
+      }
+    },
+    {
+      "id": 6,
+      "type": "ToggleSampler",
+      "pos": [
+        1120,
+        80
+      ],
+      "size": [
+        350,
+        364
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "模型",
+          "name": "模型",
+          "type": "MODEL",
+          "link": 6
+        },
+        {
+          "localized_name": "正面条件",
+          "name": "正面条件",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "localized_name": "负面条件",
+          "name": "负面条件",
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "localized_name": "Latent图像",
+          "name": "Latent图像",
+          "type": "LATENT",
+          "link": 9
+        },
+        {
+          "localized_name": "模型预设",
+          "name": "模型预设",
+          "type": "COMBO",
+          "widget": {
+            "name": "模型预设"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "采样方案",
+          "name": "采样方案",
+          "type": "COMBO",
+          "widget": {
+            "name": "采样方案"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "采样器",
+          "name": "采样器",
+          "type": "COMBO",
+          "widget": {
+            "name": "采样器"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "调度器",
+          "name": "调度器",
+          "type": "COMBO",
+          "widget": {
+            "name": "调度器"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "步数",
+          "name": "步数",
+          "type": "INT",
+          "widget": {
+            "name": "步数"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "CFG",
+          "name": "CFG",
+          "type": "FLOAT",
+          "widget": {
+            "name": "CFG"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "降噪",
+          "name": "降噪",
+          "type": "FLOAT",
+          "widget": {
+            "name": "降噪"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "噪波随机种",
+          "name": "噪波随机种",
+          "type": "INT",
+          "widget": {
+            "name": "噪波随机种"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "自定义Sigma表",
+          "name": "自定义Sigma表",
+          "type": "STRING",
+          "widget": {
+            "name": "自定义Sigma表"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "Latent",
+          "name": "Latent",
+          "type": "LATENT",
+          "links": [
+            10
+          ]
+        },
+        {
+          "localized_name": "降噪Latent",
+          "name": "降噪Latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "ToggleSampler"
+      },
+      "widgets_values": [
+        "Krea 2 turbo（8步）",
+        "自动（按步数 + 调度器）",
+        "euler",
+        "simple",
+        8,
+        1,
+        1,
+        0,
+        "randomize",
+        "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      ],
+      "widgets_values_named": {
+        "模型预设": "Krea 2 turbo（8步）",
+        "采样方案": "自动（按步数 + 调度器）",
+        "采样器": "euler",
+        "调度器": "simple",
+        "步数": 8,
+        "CFG": 1,
+        "降噪": 1,
+        "噪波随机种": 0,
+        "control_after_generate": "randomize",
+        "自定义Sigma表": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      }
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        1120,
+        560
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "Latent",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            13,
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.44.0",
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 8,
+      "type": "ToggleImageCompare",
+      "pos": [
+        1120,
+        760
+      ],
+      "size": [
+        260,
+        150
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "num_sources",
+          "name": "num_sources",
+          "type": "INT",
+          "widget": {
+            "name": "num_sources"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "num_results",
+          "name": "num_results",
+          "type": "INT",
+          "widget": {
+            "name": "num_results"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "排版",
+          "name": "排版",
+          "type": "COMBO",
+          "widget": {
+            "name": "排版"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "标签",
+          "name": "标签",
+          "type": "COMBO",
+          "widget": {
+            "name": "标签"
+          },
+          "link": null
+        },
+        {
+          "label": "原图1",
+          "name": "source1",
+          "type": "IMAGE",
+          "link": 12
+        },
+        {
+          "label": "结果1",
+          "name": "result1",
+          "type": "IMAGE",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "对比图",
+          "name": "对比图",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "ToggleImageCompare"
+      },
+      "widgets_values": [
+        1,
+        1,
+        "成对并排",
+        "显示"
+      ],
+      "widgets_values_named": {
+        "num_sources": 1,
+        "num_results": 1,
+        "排版": "成对并排",
+        "标签": "显示"
+      }
+    },
+    {
+      "id": 9,
+      "type": "SaveLoadImage",
+      "pos": [
+        1480,
+        560
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        },
+        {
+          "localized_name": "use_saved",
+          "name": "use_saved",
+          "type": "COMBO",
+          "widget": {
+            "name": "use_saved"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "SaveLoadImage"
+      },
+      "widgets_values": [
+        "Save",
+        "krea2_pose"
+      ],
+      "widgets_values_named": {
+        "use_saved": "Save",
+        "filename_prefix": "krea2_pose"
+      }
+    },
+    {
+      "id": 10,
+      "type": "Note",
+      "pos": [
+        60,
+        40
+      ],
+      "size": [
+        560,
+        360
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Krea 2 保身份 + 参考姿势（全部用本插件节点，不依赖 krea2Edit 插件）\n\n【接线】\nPoseReference(线稿) → image1，原照片 → image2，两路一起进 Ref Image Encode。\n模型类型选 Krea2；Latent 直接用它的 latent 输出（16 通道零 latent）。\n\n【★ 顺序是硬约定，反了会渲成线稿人偶】\nKrea 2 的 index 方法里「最后一个参考图 = 主体」。所以主体照片必须放 image2，\n条件图（姿势/线稿/场景）放 image1。想换顺序就在提示词里改 image 编号，\n但接线顺序不要动。\n\n【LoRA 必须配对】\n保身份用 krea2_identity_edit_v2（已挂在加载器 LoRA 槽）。\nkrea_outfittransfer 是 Ostris 系的，配这套会换人。\n\n【为什么不用 index_timestep_zero】\n那会让参考图走单独一套 t=0 调制，参考线稿会被「描」进成图（脸上出轮廓线）。\n本节点已固定用 index。\n\n【★★ 提示词必须写具体姿势，否则模型把线稿人偶画进画面】\n实测同参数下：「图二美女参考图一的姿势，重新摆pose」这种笼统句 ⇒ 模型不读线稿，\n而是把线稿人偶当成第二个主体，输出「左边真人 + 右边线稿人偶」的并排拼贴，姿势一点都不动。\n正确写法（中文完全可用，关键是三段）：\n  ① 主体指认：让图二中的女人……\n  ② 姿势解剖：跪立、身体向后仰、胸部抬起、背部拱起、双手向后下方伸去触摸脚跟、\n     头部微微后仰、四分之三侧后方视角\n  ③ 保持不变：脸、发型、服装、背景逐项列出\n本工作流里已填好一版，换姿势时按上面三段改写即可。\n\n【负面条件已经接好了，CFG 随便调】\nRef Image Encode 的第三个输出「negative」就是空文本负条件，直接接到采样器的「负面条件」。\n★ 不要再用 ConditioningZeroOut 把正面清零当负面：CFG=1.0 时它不参与计算所以看不出，\n  一旦 CFG>1 就会崩（实测 Qwen 2.1 20 步 CFG2.5 整张花屏，换空文本即正常）。"
+      ],
+      "widgets_values_named": {
+        "text": "Krea 2 保身份 + 参考姿势（全部用本插件节点，不依赖 krea2Edit 插件）\n\n【接线】\nPoseReference(线稿) → image1，原照片 → image2，两路一起进 Ref Image Encode。\n模型类型选 Krea2；Latent 直接用它的 latent 输出（16 通道零 latent）。\n\n【★ 顺序是硬约定，反了会渲成线稿人偶】\nKrea 2 的 index 方法里「最后一个参考图 = 主体」。所以主体照片必须放 image2，\n条件图（姿势/线稿/场景）放 image1。想换顺序就在提示词里改 image 编号，\n但接线顺序不要动。\n\n【LoRA 必须配对】\n保身份用 krea2_identity_edit_v2（已挂在加载器 LoRA 槽）。\nkrea_outfittransfer 是 Ostris 系的，配这套会换人。\n\n【为什么不用 index_timestep_zero】\n那会让参考图走单独一套 t=0 调制，参考线稿会被「描」进成图（脸上出轮廓线）。\n本节点已固定用 index。"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      1,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      2,
+      1,
+      2,
+      4,
+      1,
+      "VAE"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      2,
+      "IMAGE"
+    ],
+    [
+      4,
+      2,
+      0,
+      4,
+      16,
+      "IMAGE"
+    ],
+    [
+      6,
+      1,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      4,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      4,
+      2,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      4,
+      1,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      10,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      1,
+      2,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      12,
+      2,
+      0,
+      8,
+      4,
+      "IMAGE"
+    ],
+    [
+      13,
+      7,
+      0,
+      8,
+      5,
+      "IMAGE"
+    ],
+    [
+      14,
+      7,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "ds": {
+      "scale": 0.9,
+      "offset": [
+        416,
+        110
+      ]
+    }
+  },
+  "version": 0.4
+}

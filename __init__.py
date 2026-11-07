@@ -2,9 +2,14 @@
 ComfyUI Toggle Pass - Toggle nodes + Image IO + Multi-Ref Encode
 Author: Clever
 """
+# 版本号：与 pyproject.toml 的 [project].version 保持一致。
+# ComfyUI-Manager / Comfy Registry 读 pyproject.toml；这里供运行时打印、方便看日志排查。
+__version__ = "1.0.0"
+
 from .multi_ref_encode import NODE_CLASS_MAPPINGS as MULTI_REF_NODES, NODE_DISPLAY_NAME_MAPPINGS as MULTI_REF_NAMES
 from .unified_loader import NODE_CLASS_MAPPINGS as UNIFIED_NODES, NODE_DISPLAY_NAME_MAPPINGS as UNIFIED_NAMES
 from .sampler import NODE_CLASS_MAPPINGS as SAMPLER_NODES, NODE_DISPLAY_NAME_MAPPINGS as SAMPLER_NAMES
+from .pose_reference import NODE_CLASS_MAPPINGS as POSE_NODES, NODE_DISPLAY_NAME_MAPPINGS as POSE_NAMES
 
 import os
 import json
@@ -298,6 +303,25 @@ class SaveLoadImage:
 
 
 class ToggleEmptyLatent:
+    """开关空 Latent。
+
+    `latent类型` 决定通道数与空间压缩比，必须和底模的 latent_format 对齐：
+      · SD / SDXL           4 通道  8×
+      · SD3 / Flux / Krea 2 16 通道 8×   （Krea2 走 Wan21 格式，latent_dimensions=3）
+      · Qwen-Image 2.1      64 通道 16×
+      · Flux2              128 通道 16×
+    通道给错不会立刻报错 —— K采样器里的 fix_empty_latent_channels 只会在
+    「latent 全零」时按模型补齐通道，属于隐式兜底；直接接别的 latent 处理节点就不会修。
+    """
+
+    LATENT_PRESETS = {
+        "SD / SDXL（4 通道 · 8×）": (4, 8),
+        "SD3 / Flux / Krea 2（16 通道 · 8×）": (16, 8),
+        "Qwen-Image 2.1（64 通道 · 16×）": (64, 16),
+        "Flux2（128 通道 · 16×）": (128, 16),
+    }
+    DEFAULT_LATENT = "SD / SDXL（4 通道 · 8×）"
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -310,6 +334,12 @@ class ToggleEmptyLatent:
             "optional": {
                 "fallback_width": ("INT", {"default": 1024, "min": 16, "max": 16384, "step": 8}),
                 "fallback_height": ("INT", {"default": 1024, "min": 16, "max": 16384, "step": 8}),
+                # ⚠️ 必须放在 fallback_height 之后 —— 前端控件顺序是 required 全部 + optional，
+                # 老存档的 widgets_values 是 [width,height,batch_size,enabled,fb_w,fb_h] 六项，
+                # 早先把它插在 enabled 后面（fb_w 之前），老图加载时 fb_w 的 1024 会灌进来，
+                # 点运行直接 value_not_in_list: latent类型 1024 ⇒ 400，看着就是「跑不了」。
+                # 放最后 ⇒ 老图前 6 位对得上，这一项拿 default（4 通道，即老行为）。
+                "latent类型": (list(cls.LATENT_PRESETS.keys()), {"default": cls.DEFAULT_LATENT}),
             },
         }
 
@@ -318,7 +348,8 @@ class ToggleEmptyLatent:
     FUNCTION = "generate"
     CATEGORY = "Toggle-Pass"
 
-    def generate(self, width, height, batch_size=1, enabled="ON", fallback_width=None, fallback_height=None):
+    def generate(self, width, height, batch_size=1, enabled="ON", latent类型=None,
+                 fallback_width=None, fallback_height=None):
         if fallback_width is None:
             fallback_width = 1024
         if fallback_height is None:
@@ -326,10 +357,14 @@ class ToggleEmptyLatent:
         if enabled != "ON":
             width = fallback_width
             height = fallback_height
-        latent = torch.zeros([batch_size, 4, height // 8, width // 8],
+        channels, scale = self.LATENT_PRESETS.get(latent类型, self.LATENT_PRESETS[self.DEFAULT_LATENT])
+        # 宽高先向下对齐到压缩比的倍数，避免出现非整数网格
+        h = max(1, height // scale)
+        w = max(1, width // scale)
+        latent = torch.zeros([batch_size, channels, h, w],
                              device=comfy.model_management.intermediate_device(),
                              dtype=comfy.model_management.intermediate_dtype())
-        return ({"samples": latent, "downscale_ratio_spacial": 8},)
+        return ({"samples": latent, "downscale_ratio_spacial": scale},)
 
 
 # ==================== Image Compare ====================
@@ -579,6 +614,7 @@ NODE_CLASS_MAPPINGS = {
     **MULTI_REF_NODES,
     **UNIFIED_NODES,
     **SAMPLER_NODES,
+    **POSE_NODES,
     "ToggleEmptyLatent": ToggleEmptyLatent,
     "SaveLoadImage": SaveLoadImage,
     "ToggleLoadImage": ToggleLoadImage,
@@ -590,9 +626,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **MULTI_REF_NAMES,
     **UNIFIED_NAMES,
     **SAMPLER_NAMES,
+    **POSE_NAMES,
     "ToggleEmptyLatent": "Toggle Empty Latent",
     "SaveLoadImage": "Save/Load Image",
     "ToggleLoadImage": "Toggle Load Image",
     "TogglePreviewImage": "Toggle Preview Image",
     "ToggleImageCompare": "图片对比",
 }
+
+print(f"[Toggle-Pass] v{__version__} loaded — {len(NODE_CLASS_MAPPINGS)} nodes")

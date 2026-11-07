@@ -8,6 +8,7 @@ Version: 3.0 - Multiple node classes (3/5/10 images) + Custom output size for im
 
 import math
 import torch
+import torch.nn.functional as F
 import comfy.utils
 import node_helpers
 import comfy.model_management
@@ -154,6 +155,10 @@ KREA2_VISION_TOKEN = "<|vision_start|><|image_pad|><|vision_end|>"
 def _krea2_ref_preprocess(samples, vae):
     """Krea2 参考图预处理，返回 (ref_latent, vl_image)。
 
+    ⚠️ 2026-11-05 起三个编码节点的 Krea2 分支都改用 `_krea2_fit_ref`（参考图必须先
+    fit 到出图网格，否则 ref latent 与采样起点的 h/w 不同 ⇒ 线稿/边缘渗进画面），
+    本函数已无调用者，保留作参考（它编码的是「约 1 MP、保持原比例」的 latent）。
+
     samples : [B, C, H, W]（已 movedim(-1, 1)）
     · ref_latent —— VAE 编码，缩到约 1024x1024 并对齐 8 的倍数，只吃 RGB
                    （qwen_image_vae 输入 3 通道，Krea2 不吃 alpha）
@@ -187,6 +192,35 @@ def _krea2_ref_preprocess(samples, vae):
     return ref_latent, vl_image
 
 
+def _krea2_fit_ref(samples, out_w, out_h, mode="参考图保比例"):
+    """把参考图 fit 到 Krea2 采样的**空间网格**（= krea2_edit LoRA 的训练几何）。
+
+    原生 krea2 forward 给每张参考图用它**自己的网格**造位置编码：
+        ref    = (frame=i, h=0..h_ref-1, w=0..w_ref-1)
+        target = (frame=0, h=0..h_tgt-1, w=0..w_tgt-1)
+    ref 与 target 的空间尺寸不一致时，模型把它当成「另一块画布」——坐标对不上，
+    实测症状是参考图的线条被贴进成图（脸上出现轮廓线）。krea2_edit 训练时源图是
+    先 fit 到 target 网格再 VAE 编码的。这里照做：ref latent 与采样起点在 h/w 上
+    逐维相等，位置编码只差 frame 轴。
+
+    mode 沿用节点上的「尺寸适配」：
+      参考图保比例 → 中心裁到出图宽高比，再缩到出图像素尺寸（默认，几乎无损）
+      参考图裁剪   → 直接中心裁到出图尺寸
+      参考图拉伸   → 直接缩到出图尺寸（会变形）
+    """
+    tw = max(8, int(round(out_w / 8.0)) * 8)
+    th = max(8, int(round(out_h / 8.0)) * 8)
+    if mode != "参考图拉伸":
+        samples = _center_crop(samples, tw / th)
+    if (samples.shape[3], samples.shape[2]) == (tw, th):
+        return samples
+    # ★★ antialias 不能省：缩小一张锐利线稿时，无 antialias 的双三次会产生振铃/摩尔纹，
+    #    黑白边界的潜空间特征被放大，模型会照着把线条画进成图（实测：脸上出现轮廓线）。
+    #    krea2Edit 的像素路径同样是 bicubic + antialias。
+    return F.interpolate(samples.float(), size=(th, tw), mode="bicubic",
+                         antialias=True).to(samples.dtype)
+
+
 def _krea2_empty_latent(width, height):
     """Krea2 采样起点：全零 16 通道 / 8x latent。
 
@@ -205,12 +239,117 @@ def _krea2_align8(v):
     return max(8, int(round(v / 8.0)) * 8)
 
 
+def _empty_negative(clip):
+    """真正的空文本负条件（不带参考图）。
+
+    ⚠️ 不要用 `ConditioningZeroOut` 把正面条件清零当负面：
+       CFG == 1.0 时负面根本不参与计算，看着没问题；
+       一旦 CFG > 1，负面真的参与计算了，清零的张量会让整张图花屏（绿紫斑块）。
+       实测 Qwen 2.1 fp8 / int8 20 步 CFG 2.5 都崩，换成本函数这种空文本就正常。
+    """
+    tokens = clip.tokenize("")
+    return clip.encode_from_tokens_scheduled(tokens)
+
+
+# 模型类型改名兼容：老工作流里存的是旧字面量，后端收到旧值时归一化到新名字。
+# 前端 js/multi_ref_encode.js 里有一份同样的表（加载时直接把 widget 值改掉），
+# 这里再兜一层是为了「手工改 JSON / 第三方节点转存」也能走对分支。
+_MODEL_TYPE_ALIASES = {
+    "SD / SDXL": "SD / SDXL / Z-Image",
+    "SD/SDXL": "SD / SDXL / Z-Image",
+    "SD/SDXL/z-image": "SD / SDXL / Z-Image",
+    "SDXL": "SD / SDXL / Z-Image",
+    "SD 1.5": "SD / SDXL / Z-Image",
+    "Z-Image": "SD / SDXL / Z-Image",
+    "z-image": "SD / SDXL / Z-Image",
+    "ZImage": "SD / SDXL / Z-Image",
+}
+
+
+def _norm_model_type(v):
+    """把旧/别名写法的模型类型归一成当前下拉里的正式值。"""
+    if not isinstance(v, str):
+        return v
+    return _MODEL_TYPE_ALIASES.get(v.strip(), v)
+
+
+def _te_class_name(clip):
+    """取文本编码器的实际类名（如 ZImageTEModel_）。取不到返回 None。
+
+    ⚠️ 必须显式判 None：`type(None).__name__` 是字符串 "NoneType"（truthy），
+    直接拿去做 `in` 判断会误命中。
+    """
+    try:
+        csm = getattr(clip, "cond_stage_model", None)
+        if csm is None:
+            return None
+        return type(csm).__name__
+    except Exception:
+        return None
+
+
+# 底座没有 in-context 参考图通路的模型：一旦接了参考图，出图必然异常。
+# 只登记**实测确认过**的，不按型号名字猜。
+_NO_REF_CAPABILITY = {
+    "ZImage": (
+        "Z-Image（Lumina2 / NextDiT 系）是纯文生图模型，训练时没有参考图 token；"
+        "官方 5 个 z_image 模板里也没有任何「参考图编辑」接法"
+        "（唯一带图输入的是 fun_union_controlnet，走 ControlNet，机制完全不同）。"
+        "接上 image1 后参考图 token 进不了模型（缺配套的 reference_latents_text_embeds），"
+        "实测出图是满屏方块马赛克。\n"
+        "    → 纯文生图：断开 image1 即可，模型类型选「SD / SDXL / Z-Image」"
+        "（空 latent 会自动补到 16 通道）；\n"
+        "    → 要「看图改图」：换 Qwen-Image 2.1 / Krea2 / Flux2 系；\n"
+        "    → 要 Z-Image 的图生图：用 VAE Encode + 采样器 denoise < 1 的普通 img2img。"
+    ),
+}
+
+
+_WARNED_NO_REF = set()
+
+
+def _warn_no_ref_capability(clip, n_refs, tag="Ref Image Encode"):
+    """接了参考图、但底座不支持时打一条明确警告。只打印，不改变任何行为。
+
+    同一个（节点, 编码器类）只打一次：`Ref Independent` 是按图循环调用的，
+    不去重会刷满日志。
+    """
+    if n_refs <= 0:
+        return
+    te = _te_class_name(clip) or ""
+    for key, msg in _NO_REF_CAPABILITY.items():
+        if key in te:
+            if (tag, te) in _WARNED_NO_REF:
+                return
+            _WARNED_NO_REF.add((tag, te))
+            print(
+                f"\n[Toggle-Pass][{tag}] ⚠️ 文本编码器 = {te}，已接入 {n_refs} 张参考图，"
+                f"但这个底座没有参考图通路。\n    {msg}\n"
+                f"    （本次仍按你的接线执行，以上仅为提示，不修改任何参数）\n"
+            )
+            return
+
+
 class DynamicRefImageEncode:
     """
     动态 Ref Image Encode 节点，合并原 III/V/X 三个节点。
     前端 JS 根据 num_images 增删 IMAGE 输入槽（1~10）。
     所有参考图共享同一个 prompt，输出 1 个 conditioning + 1 个 latent。
     """
+
+    DESCRIPTION = (
+        "一个 prompt + 最多 10 张参考图，输出 CONDITIONING + LATENT + NEGATIVE。"
+        "第三个输出 negative 是空文本负条件，直接接采样器「负面条件」即可，"
+        "CFG 调多高都不会花屏（别再用 ConditioningZeroOut 清零正面当负面）。"
+        "MOSS-Image 与 FIBO 2.0 的 latent 与 Flux2 完全同族（128 通道 / 16x，都用 flux2-vae），"
+        "「模型类型」请直接选 Flux2。若需要 MOSS 的 edit_format（必须与编辑 LoRA 的训练格式配对）"
+        "或 image_strength、FIBO 的 negative_prompt，请改用官方编码器 "
+        "TextEncodeMOSSImageEdit / TextEncodeFibo2。"
+        "—— Krea 2：「模型类型」选 Krea2 就能做编辑（保身份 / 换姿势），不需要 krea2Edit 插件。"
+        "参考图会先 fit 到出图网格再编码，并以 reference_latents_method=index 注入。"
+        "⚠️ 顺序是硬约定：最后一个参考图 = 主体（姿势线稿放 image1、原照片放 image2），"
+        "反过来会渲成线稿人偶。"
+    )
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -236,7 +375,7 @@ class DynamicRefImageEncode:
             },
             "optional": {
                 **opt,
-                "模型类型": (["Flux2", "Qwen Layered", "Qwen Image 2.1", "SD / SDXL", "Krea2"], {"default": "Flux2"}),
+                "模型类型": (["Flux2", "Qwen Layered", "Qwen Image 2.1", "SD / SDXL / Z-Image", "Krea2"], {"default": "Flux2"}),
                 "匹配原图尺寸": (["OFF", "ON"], {"default": "OFF"}),
                 "输出宽度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
                 "输出高度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
@@ -251,8 +390,14 @@ class DynamicRefImageEncode:
             },
         }
 
-    RETURN_TYPES = ("CONDITIONING", "LATENT")
-    RETURN_NAMES = ("conditioning", "latent")
+    # ↓ 第三个输出是后加的，追加在末尾 ⇒ 旧工作流的 0/1 号口不受影响
+    # 输出顺序：conditioning / negative / latent
+    # ⚠️ 2026-11-06 调整：`negative` 从末尾挪到 `latent` 前面（纯粹为了节点上好看）。
+    #   ⇒ 索引变了（latent: 1 → 2，negative: 2 → 1），所有老工作流的连线索引都失效。
+    #   前端 js/multi_ref_encode.js 的 `migrateOutputOrder()` 会在加载时按
+    #   outputs[i].name 判断布局并交换 1/2 号口的连线，两层都改才一致。
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("conditioning", "negative", "latent")
     FUNCTION = "encode"
     CATEGORY = "Toggle-Pass"
 
@@ -303,9 +448,18 @@ class DynamicRefImageEncode:
                 device=comfy.model_management.intermediate_device(),
             )
         elif 模型类型 == "Flux2":
+            # Flux2 latent：128 通道 / 16x 空间压缩（flux2-vae）。
+            # MOSS-Image 与 FIBO 2.0 用的是同一套 latent，这两个模型请直接选 Flux2。
+            # ⚠️ 这里原来写的是 4 通道（SD 的 latent）。只有「一张参考图都不接、
+            #    纯把它当空 latent 源」时才会走到这个分支（接图时走 ref_latents[0]），
+            #    所以一直没暴露；接上 Flux2/moss/fibo 采样会直接通道不匹配。
+            channels = 128
             h = height // 16
             w = width // 16
-            latent = torch.zeros(1, 4, h, w)
+            latent = torch.zeros(
+                [1, channels, h, w],
+                device=comfy.model_management.intermediate_device(),
+            )
         else:
             h = height // 8
             w = width // 8
@@ -320,6 +474,7 @@ class DynamicRefImageEncode:
 
         n = max(1, min(10, int(num_images)))
         llama_template = self._get_system_prompt(instruction)
+        模型类型 = _norm_model_type(模型类型)          # 老存档兼容
         is_krea2 = (模型类型 == "Krea2")
 
         # 出图分辨率：2.1 用官方 ResolutionSelector 同款（宽高比 + 百万像素 + 倍数）；
@@ -375,21 +530,18 @@ class DynamicRefImageEncode:
                 vl_images.append(rgb)
                 # 2.1 不加 "Picture N: " 文本前缀（Qwen3-VL 靠占位符，不靠文本）
             elif is_krea2:
-                # ---- Krea2：照抄官方 TextEncodeQwenImageEditPlus ----
-                # 参考图 VAE 缩放到约 1024x1024、对齐 8 的倍数；VAE 只吃 RGB
-                # （qwen_image_vae 输入是 3 通道，Krea2 不吃 alpha）
-                total = 1024 * 1024
-                scale_by = math.sqrt(total / current_total)
-                kw = max(8, round(samples.shape[3] * scale_by / 8.0) * 8)
-                kh = max(8, round(samples.shape[2] * scale_by / 8.0) * 8)
-                if (kw, kh) == (samples.shape[3], samples.shape[2]):
-                    s = samples
-                else:
-                    s = comfy.utils.common_upscale(samples, kw, kh, "area", "disabled")
+                # ---- Krea2：参考图先 fit 到「出图网格」再 VAE 编码 ----
+                # 原生 krea2 forward 用每张参考图**自己的网格**造位置编码，尺寸与 target
+                # 不一致时模型把它当另一块画布 ⇒ 参考图的线条会被贴进成图（实测症状：
+                # 脸上出现轮廓线）。krea2_edit LoRA 训练时源图就是先 fit 到 target 网格
+                # 再编码的，这里对齐它。VAE 只吃 RGB（qwen_image_vae 3 通道）。
+                if first_tw is None:
+                    first_tw, first_th = _krea2_align8(pixel_width), _krea2_align8(pixel_height)
+                s = _krea2_fit_ref(samples, first_tw, first_th, 尺寸适配)
                 if vae is not None:
                     ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
 
-                # 视觉塔：384x384 附近
+                # 视觉塔：384x384 附近（语义 grounding，与潜空间几何无关）
                 vl_total = 384 * 384
                 vl_scale = math.sqrt(vl_total / current_total)
                 s_vl = comfy.utils.common_upscale(
@@ -441,14 +593,23 @@ class DynamicRefImageEncode:
             tokens = clip.tokenize(full_prompt, images=vl_images, llama_template=llama_template)
         conditioning = clip.encode_from_tokens_scheduled(tokens)
 
+        _warn_no_ref_capability(clip, len(ref_latents), "Ref Image Encode")
+
         if len(ref_latents) > 0:
             ref_vals = {"reference_latents": ref_latents}
             if is_krea2:
                 # ⚠️ Krea2 的 default_ref_method 实测是 None，而模型侧写的是
                 #     if ref_method is not None and ref_latents is not None and len(...)
                 # ⇒ 不显式给方法时参考图会被**静默忽略**（不报错、只是没效果）。
-                #   官方风格参考模板用 FluxKontextMultiReferenceLatentMethod 设成 index_timestep_zero。
-                ref_vals["reference_latents_method"] = "index_timestep_zero"
+                #
+                # ★★ 方法必须用 "index"，不能照官方模板用 "index_timestep_zero"：
+                #   "index_timestep_zero" 会让参考图 token 走 **t=0 的 adaLN 调制**
+                #   （见 comfy/ldm/krea2/model.py SingleStreamBlock.forward 的
+                #     timestep_zero_index 分支），target 走当前 t —— 两套调制。
+                #   而 krea2_edit LoRA（ai-toolkit predict_velocity_edit）训练时
+                #   全序列共用**同一个 tvec**，正好对应原生的 "index"（不分裂 tvec）。
+                #   实测：用 timestep_zero 时参考线稿会被"描"进成图（脸上出轮廓线）。
+                ref_vals["reference_latents_method"] = "index"
             conditioning = node_helpers.conditioning_set_values(
                 conditioning,
                 ref_vals,
@@ -486,7 +647,11 @@ class DynamicRefImageEncode:
         else:
             latent_out = self._make_empty_latent(模型类型, final_w, final_h, 图层数)
 
-        return (conditioning, latent_out)
+        # 第二/三个输出：空文本负条件 + 采样起点 latent。
+        # 顺序见 RETURN_NAMES —— negative 在前、latent 在后。
+        # CFG=1.0 时负面不参与计算（等价于原来的 ConditioningZeroOut），
+        # CFG>1 时它是唯一正确的接法。
+        return (conditioning, _empty_negative(clip), latent_out)
 
 
 NODE_CLASS_MAPPINGS = {
@@ -648,7 +813,7 @@ class OneImageMultiPrompt:
                         "with the original input where appropriate."
                     ),
                 }),
-                "模型类型": (["Flux2", "Qwen Image 2.1", "SD / SDXL", "Krea2"], {"default": "Flux2"}),
+                "模型类型": (["Flux2", "Qwen Image 2.1", "SD / SDXL / Z-Image", "Krea2"], {"default": "Flux2"}),
                 "匹配原图尺寸": (["OFF", "ON"], {"default": "OFF"}),
                 "输出宽度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
                 "输出高度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
@@ -701,6 +866,7 @@ class OneImageMultiPrompt:
 
         n = max(2, min(8, int(prompt数量)))
         llama_template = self._get_system_prompt(instruction)
+        模型类型 = _norm_model_type(模型类型)          # 老存档兼容
         is_21 = (模型类型 == "Qwen Image 2.1")
         is_krea2 = (模型类型 == "Krea2")
 
@@ -750,7 +916,19 @@ class OneImageMultiPrompt:
             # ⚠️ 传了 llama_template 时 Qwen3VL tokenizer 不会自动插视觉占位符
             #    （只有用内置 llama_template_images 时才自动），必须自己写
             #    <|vision_start|><|image_pad|><|vision_end|>，否则参考图对模型完全不可见。
-            ref_latent, vl_image = _krea2_ref_preprocess(samples, vae)
+            # ★ 参考图先 fit 到出图网格（krea2_edit 训练几何），理由见 _krea2_fit_ref。
+            kw_, kh_ = (_krea2_align8(pixel_width), _krea2_align8(pixel_height))
+            s = _krea2_fit_ref(samples, kw_, kh_, 尺寸适配)
+            ref_latent = vae.encode(s.movedim(1, -1)[:, :, :, :3]) if vae is not None else None
+            vl_total = 384 * 384
+            vl_scale = math.sqrt(vl_total / current_total)
+            s_vl = comfy.utils.common_upscale(
+                samples,
+                max(8, round(samples.shape[3] * vl_scale)),
+                max(8, round(samples.shape[2] * vl_scale)),
+                "area", "disabled",
+            )
+            vl_image = s_vl.movedim(1, -1)
             image_prompt = "Picture 1: " + KREA2_VISION_TOKEN
         else:
             # VAE 编码参考图（图生图用）
@@ -789,12 +967,17 @@ class OneImageMultiPrompt:
                 tokens = clip.tokenize(image_prompt + p, images=[vl_image], llama_template=llama_template)
             cond = clip.encode_from_tokens_scheduled(tokens)
 
+            _warn_no_ref_capability(clip, 0 if ref_latent is None else 1, "一图多Prompt")
+
             if ref_latent is not None:
                 ref_vals = {"reference_latents": [ref_latent]}
                 if is_krea2:
                     # Krea2 的 default_ref_method 是 None ⇒ 不显式给方法时参考图会被
-                    # 静默忽略（不报错、只是没效果）。官方风格模板用 index_timestep_zero。
-                    ref_vals["reference_latents_method"] = "index_timestep_zero"
+                    # 静默忽略（不报错、只是没效果）。
+                    # ★★ 必须用 "index" 而非 "index_timestep_zero"：后者给参考图单独
+                    #    一套 t=0 的 adaLN 调制，与 krea2_edit LoRA 的训练（全序列同一
+                    #    tvec）不符，实测会把参考线稿"描"进成图。详见 DynamicRefImageEncode。
+                    ref_vals["reference_latents_method"] = "index"
                 cond = node_helpers.conditioning_set_values(
                     cond,
                     ref_vals,
@@ -829,11 +1012,19 @@ class OneImageMultiPrompt:
         elif ref_latent is not None:
             latent_out = {"samples": ref_latent}
         else:
-            # 纯文生图
-            scale = 16 if 模型类型 == "Flux2" else 8
+            # 纯文生图：通道数必须跟模型一致。
+            # Flux2（以及同族的 MOSS-Image / FIBO 2.0）是 128 通道 / 16x，SD 是 4 通道 / 8x。
+            # 原来不分类型一律 4 通道，接 Flux2 采样会直接通道不匹配。
+            if 模型类型 == "Flux2":
+                scale, channels = 16, 128
+            else:
+                scale, channels = 8, 4
             lw = 输出宽度 // scale
             lh = 输出高度 // scale
-            latent_out = {"samples": torch.zeros(1, 4, lh, lw)}
+            latent_out = {"samples": torch.zeros(
+                [1, channels, lh, lw],
+                device=comfy.model_management.intermediate_device(),
+            )}
 
         # 补齐到 8 个 conditioning（未使用的填空 conditioning）
         while len(results) < 8:
@@ -892,7 +1083,7 @@ class DynamicRefIndependent:
             },
             "optional": {
                 **opt,
-                "模型类型": (["Flux2", "Qwen Layered", "Qwen Image 2.1", "SD / SDXL", "Krea2"], {"default": "Flux2"}),
+                "模型类型": (["Flux2", "Qwen Layered", "Qwen Image 2.1", "SD / SDXL / Z-Image", "Krea2"], {"default": "Flux2"}),
                 "匹配原图尺寸": (["OFF", "ON"], {"default": "OFF"}),
                 "输出宽度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
                 "输出高度": ("INT", {"default": 1024, "min": 256, "max": 4096, "step": 8}),
@@ -944,8 +1135,17 @@ class DynamicRefIndependent:
                尺寸适配="参考图保比例", **kwargs):
         n = max(1, min(10, int(num_images)))
         llama_template = self._get_system_prompt(instruction)
+        模型类型 = _norm_model_type(模型类型)          # 老存档兼容
         is_21 = (模型类型 == "Qwen Image 2.1")
         is_krea2 = (模型类型 == "Krea2")
+        if is_krea2 and n > 1:
+            # 本节点把每张图编进各自独立的 conditioning（Qwen 2.1 的每图独立 index 平面那套设计）。
+            # Krea2 需要的是「一条连贯的参考序列」：合并多个独立 conditioning 后，
+            # reference_latents 的 frame 语义会乱 —— 实测线稿残留 + 姿势跑偏，而且不报错。
+            print("[Toggle-Pass] ⚠️ DynamicRefIndependent 在 Krea2 多图下不可靠：多图请改用 "
+                  "Ref Image Encode（DynamicRefImageEncode），一个节点就能带上多张参考图。",
+                  flush=True)
+
         conds = []
         latents = []          # 每张图自己的 latent
         first_latent = None   # 第一张非空图的 latent，用于共享 latent_out
@@ -1012,7 +1212,18 @@ class DynamicRefIndependent:
                     final_w = _krea2_align8(samples.shape[3])
                     final_h = _krea2_align8(samples.shape[2])
                     size_locked = True
-                img_latent, vl_image = _krea2_ref_preprocess(samples, vae)
+                # ★ 参考图先 fit 到出图网格（krea2_edit 训练几何），理由见 _krea2_fit_ref
+                s_k = _krea2_fit_ref(samples, final_w, final_h, 尺寸适配)
+                img_latent = vae.encode(s_k.movedim(1, -1)[:, :, :, :3]) if vae is not None else None
+                vl_total = 384 * 384
+                vl_scale = math.sqrt(vl_total / current_total)
+                s_vl = comfy.utils.common_upscale(
+                    samples,
+                    max(8, round(samples.shape[3] * vl_scale)),
+                    max(8, round(samples.shape[2] * vl_scale)),
+                    "area", "disabled",
+                )
+                vl_image = s_vl.movedim(1, -1)
                 if img_latent is not None and first_latent is None:
                     first_latent = img_latent
             else:
@@ -1051,12 +1262,17 @@ class DynamicRefIndependent:
             cond = clip.encode_from_tokens_scheduled(tokens)
 
             # ---- 每张图的 conditioning 绑定自己的 latent ----
+            _warn_no_ref_capability(clip, 0 if img_latent is None else 1, "Ref Independent")
+
             if img_latent is not None:
                 ref_vals = {"reference_latents": [img_latent]}
                 if is_krea2:
                     # Krea2 的 default_ref_method 是 None ⇒ 不显式给方法时参考图会被
-                    # 静默忽略（不报错、只是没效果）。官方风格模板用 index_timestep_zero。
-                    ref_vals["reference_latents_method"] = "index_timestep_zero"
+                    # 静默忽略（不报错、只是没效果）。
+                    # ★★ 必须用 "index" 而非 "index_timestep_zero"：后者给参考图单独
+                    #    一套 t=0 的 adaLN 调制，与 krea2_edit LoRA 的训练（全序列同一
+                    #    tvec）不符，实测会把参考线稿"描"进成图。
+                    ref_vals["reference_latents_method"] = "index"
                 cond = node_helpers.conditioning_set_values(
                     cond,
                     ref_vals,
@@ -1094,7 +1310,17 @@ class DynamicRefIndependent:
         elif is_krea2:
             latent_out = _krea2_empty_latent(final_w, final_h)
         elif first_latent is None:
-            latent_out = {"samples": torch.zeros(1, 4, 1, 1)}
+            # 一张图都没接：给一个与模型匹配的空 latent。
+            # 原来固定 4 通道 1×1 —— KSampler 的 fix_empty_latent_channels 会把它补成
+            # (1, 128, 1, 1) 并照常采样，最后解码出一张 16×16 的废图（不报错，很难查）。
+            if 模型类型 == "Flux2":
+                scale, channels = 16, 128
+            else:
+                scale, channels = 8, 4
+            latent_out = {"samples": torch.zeros(
+                [1, channels, max(1, 输出高度 // scale), max(1, 输出宽度 // scale)],
+                device=comfy.model_management.intermediate_device(),
+            )}
         else:
             latent_out = {"samples": first_latent}
 

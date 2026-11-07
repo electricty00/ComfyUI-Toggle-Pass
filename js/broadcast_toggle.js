@@ -489,20 +489,32 @@ function inflate(appRef) {
 const PREVIEW_COLOR = "#a78bfa";
 const PREVIEW_GLOW = "#7c5cff";
 
-/** 从槽位的 boundingRect（官方渲染算出来的真实盒子）取中心点，图坐标 */
+/**
+ * ⚠️⚠️ `boundingRect` 只在**画过**这个槽位之后才有效。
+ *   节点在可视区外 / 从未渲染时，槽位的 `boundingRect` 是 `[0,0,0,0]`，
+ *   而 `rectCenter` 对零尺寸会老老实实返回 `[0,0]` —— 于是端点被算成**图坐标原点**，
+ *   线就画到画布左上角那片空白里，看着像一根「悬空紫线」。
+ *   2026-11-06 用户截图里那根从节点往左伸出去就断掉的线就是这个：
+ *   目标是画面外的 `VAE解码`（pos.x=1352，槽位 boundingRect 全 0）。
+ *   ⇒ 零尺寸一律视为「未布局」，退回 `getConnectionPos` 估算。
+ */
 function rectCenter(r) {
     if (!r) return null;
     if (Array.isArray(r) || typeof r[0] === "number") {
         const x = numAt(r, 0);
         const y = numAt(r, 1);
+        const w = numAt(r, 2);
+        const h = numAt(r, 3);
         if (x == null || y == null) return null;
-        return [x + (numAt(r, 2) || 0) / 2, y + (numAt(r, 3) || 0) / 2];
+        if (!(w > 0) || !(h > 0)) return null; /* 未布局 */
+        return [x + w / 2, y + h / 2];
     }
     const x = typeof r.x === "number" ? r.x : r.left;
     const y = typeof r.y === "number" ? r.y : r.top;
     if (typeof x !== "number" || typeof y !== "number") return null;
     const w = r.width ?? r.w ?? 0;
     const h = r.height ?? r.h ?? 0;
+    if (!(w > 0) || !(h > 0)) return null; /* 未布局 */
     return [x + w / 2, y + h / 2];
 }
 
@@ -587,6 +599,11 @@ function computeShapes(canvas) {
             b,
             c1: [a[0] + d, a[1]],
             c2: [b[0] - d, b[1]],
+            /* 原始引用留着：点亮槽位时要拿槽位的 type（决定颜色）和归属节点（判遮挡） */
+            srcNode: p.srcNode,
+            srcSlot: p.srcSlot,
+            dstNode: p.dstNode,
+            dstSlot: p.dstSlot,
         });
     }
     if (!items.length) return null;
@@ -670,9 +687,16 @@ function drawBroadcastLines(ctx, canvas) {
 }
 
 /**
- * 端点小圆点 —— 画在**节点上层**。
- * 槽位本身就压在节点边线上，放下层会被节点整个盖掉，线头看着像断的；
- * 两颗 3px 的点不挡任何文字，却能把「接在哪」钉死。
+ * 端点小圆点 —— 默认和线**同一层**（背景层，被节点盖住）。
+ *
+ * ⚠️ 为什么改了（2026-11-06 用户实测）：
+ *   早先画在 `draw()` 末尾 = 全画布最上层，理由是「槽位压在节点边线上，
+ *   放下层会被盖掉、线头看着像断的」。但这个优先级会让圆点在**任何**节点
+ *   移到线上方时照样穿出来 —— 用户拿节点当遮罩盖内容时，一串紫点浮在
+ *   节点上面，看着像脏点。
+ *   现在和线同层：节点盖住线的同时把点一起盖住，观感统一（线从节点边缘
+ *   伸出来，正好是官方连线的样子）。
+ *   想回到旧行为：`localStorage.tp_dots_layer = "front"` 再刷新。
  */
 function drawBroadcastDots(ctx, canvas) {
     const plan = computeShapes(canvas);
@@ -699,9 +723,153 @@ function drawBroadcastDots(ctx, canvas) {
 }
 
 /**
+ * 取某个类型（MODEL / CLIP / VAE…）的官方配色。
+ * 前端把颜色放在 `LGraphCanvas.link_type_colors`，没命中再看
+ * `canvas.default_connection_color_byType`，都没有就退回中灰。
+ */
+function slotTypeColor(canvas, type) {
+    const t = String(type || "").toUpperCase();
+    const tbl = (typeof window !== "undefined" && window.LGraphCanvas && window.LGraphCanvas.link_type_colors) || {};
+    let c = tbl[t];
+    if (!c && canvas && canvas.default_connection_color_byType) c = canvas.default_connection_color_byType[t];
+    return c || "#9A9";
+}
+
+/**
+ * 这个槽位会不会被**后绘制**的节点盖住？
+ * 画布按 `graph._nodes` 顺序绘制，下标大的在上面。只要有点落在
+ * 某个「更晚绘制」的节点矩形里，就说明它被挡住了 —— 此时不该点亮，
+ * 否则又是一颗浮在别的节点上的假点。
+ */
+function slotHiddenByOtherNode(pt, owner, nodes) {
+    if (!pt || !owner || !nodes) return false;
+    const i = nodes.indexOf(owner);
+    if (i < 0) return false;
+    for (let k = i + 1; k < nodes.length; k++) {
+        const n = nodes[k];
+        if (!n || n === owner || !n.pos || !n.size) continue;
+        const x0 = n.pos[0];
+        const y0 = n.pos[1] - 30;
+        if (pt[0] >= x0 && pt[0] <= x0 + n.size[0] && pt[1] >= y0 && pt[1] <= y0 + n.size[1] + 30) return true;
+    }
+    return false;
+}
+
+/**
+ * 把会被广播接上的槽位**点亮**（补一个和「已连接」一样的实心点）。
+ *
+ * ⚠️ 为什么必须先看 `slot.link`：
+ *   官方槽位是「有 link 填实心、没 link 只描边」。广播只是**预览**，提交前不会
+ *   真的建连线，所以 `slot.link` 一直是 null ⇒ 槽位永远显示成空心，线却已经
+ *   画过去了，看着就是「接上了但没点亮」。
+ *   这里只在「空着、且没被别的节点盖住、位置确定（boundingRect 有效）」时补实心点，
+ *   颜色取该槽位类型的官方配色，所以和手动连线的观感一致。
+ *
+ * 画在**节点之后**（`draw()` 末尾）：槽位点在节点边框上，属于节点自身的一部分，
+ * 画在下层会被节点吃掉。
+ */
+function drawBroadcastSlotLit(ctx, canvas) {
+    const plan = computeShapes(canvas);
+    if (!plan || !ctx) return;
+    const g = (app && (app.rootGraph || app.graph)) || (canvas && canvas.graph);
+    const nodes = (g && g._nodes) || [];
+    const { items, scale, dpr } = plan;
+
+    ctx.save();
+    try {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const r = Math.max(2, 3 * scale);
+        for (const it of items) {
+            const ends = [
+                { node: it.srcNode, idx: it.srcSlot, isInput: false, pt: it.a, ptG: it.aG },
+                { node: it.dstNode, idx: it.dstSlot, isInput: true, pt: it.b, ptG: it.bG },
+            ];
+            for (const q of ends) {
+                const list = q.isInput ? q.node && q.node.inputs : q.node && q.node.outputs;
+                const slot = list && list[q.idx];
+                if (!slot) continue;
+                if (slot.link != null) continue; /* 真连过了，官方自己就画实心 */
+                if (q.node.flags && q.node.flags.collapsed) continue;
+                const br = slot.boundingRect;
+                if (!br || !(numAt(br, 2) > 0)) continue; /* 位置不确定就别瞎点 */
+                if (slotHiddenByOtherNode(q.ptG, q.node, nodes)) continue;
+                ctx.beginPath();
+                ctx.fillStyle = slotTypeColor(canvas, slot.type);
+                ctx.arc(q.pt[0], q.pt[1], r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    } finally {
+        ctx.restore();
+    }
+}
+
+/**
+ * 端点圆点放哪一层：
+ *   "back"（默认）→ 跟线一起画进 bgcanvas，节点能盖住
+ *   "front"        → 旧的 draw() 末尾，全画布最上层（能穿出节点）
+ * 用 localStorage 而不是 `app.extensionManager.setting`：后者会 POST 到
+ * 服务端 `comfy.settings.json`，污染用户真实环境。
+ */
+function dotsOnFront() {
+    try {
+        return window.localStorage && window.localStorage.getItem("tp_dots_layer") === "front";
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * 诊断工具：把当前每一根广播线的两端、归属节点、槽位实算位置全部列表打印。
+ * 只读，不改任何行为。控制台执行 `__tpAudit()` 即可。
+ *
+ * 用途：线画到空白处（端点悬空、没有归属节点）时，一眼看出是哪条 pair 算错、
+ * 目标槽位的 `boundingRect` 到底是什么。
+ */
+function installAudit() {
+    if (typeof window === "undefined" || window.__tpAudit) return;
+    window.__tpAudit = function (opts) {
+        const cv = app.canvas;
+        const g = (app && (app.rootGraph || app.graph)) || (cv && cv.graph);
+        if (!g) return "没有图";
+        const near = (p, n) => {
+            if (!p || !n) return "noPoint";
+            const pad = 14;
+            const x0 = n.pos[0] - pad;
+            const y0 = n.pos[1] - 30 - pad;
+            const x1 = n.pos[0] + n.size[0] + pad;
+            const y1 = n.pos[1] + n.size[1] + pad;
+            return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1;
+        };
+        const rows = [];
+        const { pairs } = planBroadcast(g);
+        (pairs || []).forEach((p, i) => {
+            const aG = slotPoint(p.srcNode, false, p.srcSlot);
+            const bG = slotPoint(p.dstNode, true, p.dstSlot);
+            const slot = p.dstNode?.inputs?.[p.dstSlot];
+            rows.push({
+                "#": i,
+                源: (p.srcNode?.title || p.srcNode?.type) + " [" + p.srcSlot + "]",
+                目标: (p.dstNode?.title || p.dstNode?.type) + " [" + p.dstSlot + "] " + (slot?.name || ""),
+                起点: aG ? aG.map(Math.round).join(",") : "-",
+                起点在节点内: near(aG, p.srcNode),
+                终点: bG ? bG.map(Math.round).join(",") : "-",
+                终点在节点内: near(bG, p.dstNode),
+                目标节点矩形: p.dstNode ? [p.dstNode.pos[0], p.dstNode.pos[1], p.dstNode.size[0], p.dstNode.size[1]].map(Math.round).join(",") : "-",
+                终点槽boundingRect: slot && slot.boundingRect ? Array.from(slot.boundingRect).map(Math.round).join(",") : String(slot && slot.boundingRect),
+            });
+        });
+        console.table(rows);
+        const bad = rows.filter((r) => r.起点在节点内 !== true || r.终点在节点内 !== true);
+        if (bad.length) console.warn(`[Toggle-Pass] ${bad.length} 根线的端点不在自己节点范围内（悬空）：`, bad);
+        if (!opts || opts.raw !== false) return rows;
+    };
+}
+
+/**
  * 装配两处钩子：
- *   ① `drawBackCanvas` **之后** → 线（画进 bgcanvas，节点下层）
- *   ② `draw()` 末尾        → 端点圆点（主 ctx，节点上层）
+ *   ① `drawBackCanvas` **之后** → 线 + 端点圆点（画进 bgcanvas，节点下层）
+ *   ② `draw()` 开头          → 兜底重包 `drawBackCanvas`（前端偶尔会换掉它）
  *
  * ⚠️ 为什么不用 `onDrawForeground`（踩过的坑）：
  *   ComfyUI 前端用 `watch(() => app.canvas, e => e.onDrawForeground = chain(...))`
@@ -713,6 +881,7 @@ function installPreviewPainter(appRef) {
     if (!canvas || typeof canvas.draw !== "function") return;
     if (canvas.__tpDrawPatched) return;
     canvas.__tpDrawPatched = true;
+    installAudit();
 
     /* ⚠️ 为什么挂在 `drawBackCanvas` **之后**（踩过的坑）：
      *   一开始插在 `drawFrontCanvas` **之前**，结果一个像素都看不到 ——
@@ -729,7 +898,9 @@ function installPreviewPainter(appRef) {
         const wrapped = function (...args) {
             const r = inner.apply(this, args);
             try {
-                drawBroadcastLines(bgCtx(this), this);
+                const bg = bgCtx(this);
+                drawBroadcastLines(bg, this);
+                if (!dotsOnFront()) drawBroadcastDots(bg, this);
             } catch (e) {
                 if (typeof window !== "undefined") window.__tpDrawErr = "line:" + String((e && e.message) || e);
             }
@@ -751,7 +922,8 @@ function installPreviewPainter(appRef) {
             r = origDraw.apply(this, args);
         } finally {
             try {
-                drawBroadcastDots(this.ctx, this);
+                drawBroadcastSlotLit(this.ctx, this);
+                if (dotsOnFront()) drawBroadcastDots(this.ctx, this);
             } catch (e) {
                 if (typeof window !== "undefined") window.__tpDrawErr = "dot:" + String((e && e.message) || e);
             }

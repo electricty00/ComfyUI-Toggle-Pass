@@ -1,0 +1,816 @@
+{
+  "id": "92e0572f-4e3e-4173-9e4f-067267af190c",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        60,
+        110
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "UNet名称",
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "数据类型",
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Qwen\\qwen_image_2.1_turbo_int8_convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "Qwen\\qwen_image_2.1_turbo_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        255
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "CLIP名称",
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "类型",
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "设备",
+          "name": "device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen\\qwen3vl_8b_int8_convrot.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen\\qwen3vl_8b_int8_convrot.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        60,
+        435
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "vae名称",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            3,
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    {
+      "id": 4,
+      "type": "PoseReference",
+      "pos": [
+        440,
+        90
+      ],
+      "size": [
+        340,
+        300
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "category",
+          "name": "category",
+          "type": "COMBO",
+          "widget": {
+            "name": "category"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "group",
+          "name": "group",
+          "type": "COMBO",
+          "widget": {
+            "name": "group"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "pose",
+          "name": "pose",
+          "type": "COMBO",
+          "widget": {
+            "name": "pose"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "view",
+          "name": "view",
+          "type": "COMBO",
+          "widget": {
+            "name": "view"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "source",
+          "name": "source",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "source"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "long_edge",
+          "name": "long_edge",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "long_edge"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "flip",
+          "name": "flip",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "flip"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "electricty00/ComfyUI-Toggle-Pass",
+        "ver": "60665017a9f0f1fb0cb53714f294d7ccee961066",
+        "Node name for S&R": "PoseReference",
+        "tp_pose": {
+          "key": "全身单人・标准系|站姿|P019_站立・双臂上举伸展|斜侧|线稿",
+          "img": "data:image/webp;base64,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"
+        }
+      },
+      "widgets_values": [
+        "全身单人・标准系",
+        "站姿",
+        "P019_站立・双臂上举伸展",
+        "斜侧",
+        "线稿",
+        1024,
+        "关"
+      ],
+      "widgets_values_named": {
+        "category": "全身单人・标准系",
+        "group": "站姿",
+        "pose": "P019_站立・双臂上举伸展",
+        "view": "斜侧",
+        "source": "线稿",
+        "long_edge": 1024,
+        "flip": "关"
+      }
+    },
+    {
+      "id": 5,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        840,
+        90
+      ],
+      "size": [
+        400,
+        226
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "localized_name": "image_1",
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 5
+        },
+        {
+          "localized_name": "image_2",
+          "name": "images.image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 3
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "negative_prompt",
+          "name": "negative_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "Render this pose reference into a photorealistic full-body photo of a young East Asian woman wearing a simple white dress, standing on a pure white studio background with soft even lighting. Keep her pose, body proportions and camera angle exactly as shown in the reference.",
+        "",
+        1024
+      ],
+      "widgets_values_named": {
+        "prompt": "Render this pose reference into a photorealistic full-body photo of a young East Asian woman wearing a simple white dress, standing on a pure white studio background with soft even lighting. Keep her pose, body proportions and camera angle exactly as shown in the reference.",
+        "negative_prompt": "",
+        "resolution": 1024
+      }
+    },
+    {
+      "id": 6,
+      "type": "KSampler",
+      "pos": [
+        1230,
+        90
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "localized_name": "正面条件",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "localized_name": "负面条件",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "localized_name": "Latent图像",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "localized_name": "种子",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "步数",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "采样器名称",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "调度器",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "降噪",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        20261102,
+        "fixed",
+        8,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 20261102,
+        "control_after_generate": "fixed",
+        "steps": 8,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        1510,
+        90
+      ],
+      "size": [
+        230,
+        46
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "Latent",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 9
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        1750,
+        90
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "图片",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "localized_name": "文件名前缀",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "pose_qwen"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "pose_qwen"
+      }
+    },
+    {
+      "id": 9,
+      "type": "Note",
+      "pos": [
+        440,
+        620
+      ],
+      "size": [
+        980,
+        400
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "参考姿势 · 用姿势素材生成图片\n\n▸ 怎么用\n   1. 在「参考姿势」节点上选：类别 / 姿势组 / 姿势 / 视角（前三个联动）\n   2. 执行，节点上会直接画出选中的素材，先确认姿势对不对\n   3. 改 prompt 描述你要的画面（服装、背景、风格），执行\n\n▸ 源：线稿 / 深度\n   默认「线稿」。实测深度图 3/3 会自己补出不存在的鞋或护具\n   （深度没有边界线，脚底和地面亮度太接近），线稿只有 1/3 有瑕疵。\n   深度唯一的优势是遮挡关系，肢体交叠复杂的姿势可以切过去试。\n\n▸ 长边 / 翻转\n   素材原始只有 300x400，「长边」默认放大到 1024。\n   「翻转」做左右镜像，反方向的姿势不用另找素材。\n\n▸ 换编辑模型\n   这个节点的输出是普通 IMAGE，直接把「参考姿势」接到别的编辑编码器的\n   images 输入即可：\n     · TextEncodeQwenImage21（当前用的，Qwen-Image-2.1）\n     · TextEncodeFibo2（FIBO 2.0，记得 CLIPLoader 类型选 fibo2、VAE 换 flux2-vae）\n     · TextEncodeQwenImageEditPlus / DynamicRefImageEncode 等\n   图片尺寸建议跟 model 的出图尺寸一致，不然模型会自己裁。\n\n▸ 参数\n   Qwen-Image-2.1 turbo：steps 8 / cfg 1.0 / euler / simple / denoise 1.0\n   用文件\n     unet: Qwen/qwen_image_2.1_turbo_int8_convrot.safetensors\n     clip: qwen/qwen3vl_8b_int8_convrot.safetensors（类型 qwen_image）\n     vae : qwen_image_2.1_vae_bf16.safetensors（64 通道，别选 qwen_image_vae）"
+      ],
+      "widgets_values_named": {
+        "text": "参考姿势 · 用姿势素材生成图片\n\n▸ 怎么用\n   1. 在「参考姿势」节点上选：类别 / 姿势组 / 姿势 / 视角（前三个联动）\n   2. 执行，节点上会直接画出选中的素材，先确认姿势对不对\n   3. 改 prompt 描述你要的画面（服装、背景、风格），执行\n\n▸ 源：线稿 / 深度\n   默认「线稿」。实测深度图 3/3 会自己补出不存在的鞋或护具\n   （深度没有边界线，脚底和地面亮度太接近），线稿只有 1/3 有瑕疵。\n   深度唯一的优势是遮挡关系，肢体交叠复杂的姿势可以切过去试。\n\n▸ 长边 / 翻转\n   素材原始只有 300x400，「长边」默认放大到 1024。\n   「翻转」做左右镜像，反方向的姿势不用另找素材。\n\n▸ 换编辑模型\n   这个节点的输出是普通 IMAGE，直接把「参考姿势」接到别的编辑编码器的\n   images 输入即可：\n     · TextEncodeQwenImage21（当前用的，Qwen-Image-2.1）\n     · TextEncodeFibo2（FIBO 2.0，记得 CLIPLoader 类型选 fibo2、VAE 换 flux2-vae）\n     · TextEncodeQwenImageEditPlus / DynamicRefImageEncode 等\n   图片尺寸建议跟 model 的出图尺寸一致，不然模型会自己裁。\n\n▸ 参数\n   Qwen-Image-2.1 turbo：steps 8 / cfg 1.0 / euler / simple / denoise 1.0\n   用文件\n     unet: Qwen/qwen_image_2.1_turbo_int8_convrot.safetensors\n     clip: qwen/qwen3vl_8b_int8_convrot.safetensors（类型 qwen_image）\n     vae : qwen_image_2.1_vae_bf16.safetensors（64 通道，别选 qwen_image_vae）"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      3,
+      0,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      2,
+      2,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      1,
+      "IMAGE"
+    ],
+    [
+      3,
+      3,
+      0,
+      5,
+      3,
+      "VAE"
+    ],
+    [
+      6,
+      5,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      5,
+      1,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      5,
+      2,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      9,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      10,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "加载模型",
+      "bounding": [
+        20,
+        50,
+        330,
+        490
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "参考姿势 → 出图",
+      "bounding": [
+        410,
+        50,
+        1580,
+        440
+      ],
+      "color": "#8a6d3b",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.62,
+      "offset": [
+        60,
+        80
+      ]
+    }
+  },
+  "version": 0.4
+}

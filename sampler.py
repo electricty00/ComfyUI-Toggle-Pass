@@ -49,6 +49,105 @@ SCHEME_LIST = [SCHEME_AUTO] + list(SIGMA_PRESETS.keys()) + [SCHEME_CUSTOM]
 SCHEMA_SAMPLE = SIGMA_PRESETS["Qwen-Image-2.1 turbo 8步"]
 
 
+# ==================== 模型预设 ====================
+# 一键把「采样方案 + 采样器 + 调度器 + 步数 + CFG」设成该模型的常用组合。
+#
+# 数值不是凭印象写的，全部来自本机 `ComfyUI/user/default/workflows/` 里
+# 实际跑通的工作流（括号内是来源文件），改之前请先跑一遍再到这里调：
+#   · Qwen-Image 2.1        25 步 euler simple CFG 1   ← qwen-iamge-2.1-Full / qwen-image-2.1-aio
+#   · Qwen-Image 2.1 turbo  8 步 固定 sigma 表          ← Qwen21_turbo_TogglePass
+#   · Krea 2 turbo          8 步 euler simple CFG 1    ← Krea2_Ostris_Edit_outfit
+#   · Krea 2 细节增强       12 步 euler simple CFG 1    ← krea2_turbo_edit
+#   · FLUX.2 klein          4 步 euler beta CFG 1      ← Flux2/Flux2图文合一、画质提升
+#   · FLUX.2 klein 高清修复 4 步 euler_ancestral simple ← Flux2/flux2-klein-高清修复
+#   · Z-Image turbo         8 步 euler_ancestral simple ← z-image/z-image-turbo
+#   · Qwen-Image Layered    9 步 euler simple CFG 2.5   ← Qwen-image/image_qwen_layered
+#   · Qwen-Image Edit 2511  4 步 euler_ancestral beta   ← Qwen-image/qwen_Image-AIO-2511-*
+#   · FIBO 2.0 turbo        4 步 euler simple CFG 1    ← FIBO2-文生图+图编辑
+#   · MOSS-Image            30 步 euler normal CFG 4    ← image_moss_image_edit
+#
+# 前端会读 /toggle_pass/sampler_presets 拿这张表（单一数据源，别在前端再抄一份）。
+# Python 本身**不套用**预设：它只是前端的一键填充，参数最终以 widget 上的值为准，
+# 这样用户选完预设再手改任何一个值都不会被后端偷偷改回去。
+PRESET_NONE = "手动（不套用）"
+
+# 下拉里只显示短名 —— 节点宽度有限，名字太长会把左边的标题「预设」整个挤掉。
+# 完整信息都在括注里，而 CFG 之类真正会变的参数选完就能在旁边看到。
+MODEL_PRESETS = {
+    PRESET_NONE: None,
+    "Qwen-Image 2.1（25步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "simple",
+        "steps": 25, "cfg": 1.0,
+    },
+    "Qwen-Image 2.1 turbo（8步·固定表）": {
+        "scheme": "Qwen-Image-2.1 turbo 8步", "sampler": "euler", "scheduler": "simple",
+        "steps": 8, "cfg": 1.0,
+    },
+    "Krea 2 turbo（8步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "simple",
+        "steps": 8, "cfg": 1.0,
+    },
+    "Krea 2 turbo・细节增强（12步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "simple",
+        "steps": 12, "cfg": 1.0,
+    },
+    "FLUX.2 klein（4步·beta）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "beta",
+        "steps": 4, "cfg": 1.0,
+    },
+    "FLUX.2 klein・高清修复（4步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler_ancestral", "scheduler": "simple",
+        "steps": 4, "cfg": 1.0,
+    },
+    "Z-Image turbo（8步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler_ancestral", "scheduler": "simple",
+        "steps": 8, "cfg": 1.0,
+    },
+    "Qwen-Image Layered（9步·CFG2.5）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "simple",
+        "steps": 9, "cfg": 2.5,
+    },
+    "Qwen-Image Edit 2511 AIO（4步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler_ancestral", "scheduler": "beta",
+        "steps": 4, "cfg": 1.0,
+    },
+    # 下面两个是 11-04 新加：FIBO 是 4 步蒸馏（steps 给大反而崩），MOSS 是 SFT 不是蒸馏，
+    # 30 步 + CFG 4 才是它训练时的配置，降到 4 步会糊成一片。
+    "FIBO 2.0 turbo（4步）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "simple",
+        "steps": 4, "cfg": 1.0,
+    },
+    "MOSS-Image（30步·CFG4）": {
+        "scheme": SCHEME_AUTO, "sampler": "euler", "scheduler": "normal",
+        "steps": 30, "cfg": 4.0,
+    },
+}
+
+# 中途有过一版用短名（"Qwen 2.1 · 25步" 这种），已存盘的工作流里可能是它。
+# 加载时由前端按这张表把旧值翻译成当前全名，否则下拉会显示成空值。
+PRESET_ALIASES = {
+    "Qwen 2.1 · 25步": "Qwen-Image 2.1（25步）",
+    "Qwen 2.1 turbo · 8步表": "Qwen-Image 2.1 turbo（8步·固定表）",
+    "Krea2 turbo · 8步": "Krea 2 turbo（8步）",
+    "Krea2 细节 · 12步": "Krea 2 turbo・细节增强（12步）",
+    "FLUX2 klein · 4步": "FLUX.2 klein（4步·beta）",
+    "FLUX2 高清 · 4步": "FLUX.2 klein・高清修复（4步）",
+    "Z-Image turbo · 8步": "Z-Image turbo（8步）",
+    "Layered · 9步": "Qwen-Image Layered（9步·CFG2.5）",
+    "2511 AIO · 4步": "Qwen-Image Edit 2511 AIO（4步）",
+}
+
+PRESET_LIST = [PRESET_NONE] + [k for k in MODEL_PRESETS if k != PRESET_NONE]
+
+# widgets_values 是「按顺序」存的，而 1.57 之前的老存档没有 widgets_values_named，
+# 只能靠位置对上号。把「模型预设」挪到最前面之后，这份「老顺序」就是给前端
+# 填 nodeData.fallbackWidgetsValuesNames 用的 —— 老存档照这张表按名字重新对应。
+LEGACY_WIDGET_ORDER = [
+    "采样方案", "采样器", "调度器", "步数", "CFG", "降噪",
+    "噪波随机种", "control_after_generate", "自定义Sigma表", "模型预设",
+]
+
+
 # ==================== 工具 ====================
 
 class _RandomNoise:
@@ -118,6 +217,13 @@ class ToggleSampler:
                 "正面条件": ("CONDITIONING",),
                 "负面条件": ("CONDITIONING",),
                 "Latent图像": ("LATENT",),
+                # 「模型预设」放在所有参数控件的最前面：先选模型、再微调，才是真实顺序。
+                # 它只是前端的一键填充按钮，后端不参与计算。
+                "模型预设": (PRESET_LIST, {
+                    "default": PRESET_NONE,
+                    "tooltip": "选一个模型，自动把下面的采样方案/采样器/调度器/步数/CFG 填好；"
+                               "之后手动改其中任何一个会自动回到「手动」",
+                }),
                 "采样方案": (SCHEME_LIST, {"default": SCHEME_AUTO}),
                 "采样器": (comfy.samplers.KSampler.SAMPLERS, {"default": "euler"}),
                 "调度器": (comfy.samplers.KSampler.SCHEDULERS, {"default": "simple"}),
@@ -167,7 +273,14 @@ class ToggleSampler:
     # ---------- 主流程 ----------
 
     def sample(self, 模型, 正面条件, 负面条件, Latent图像, 采样方案, 采样器,
-               调度器, 步数, CFG, 降噪, 噪波随机种, 自定义Sigma表):
+               调度器, 步数, CFG, 降噪, 噪波随机种, 自定义Sigma表,
+               模型预设=PRESET_NONE):
+        # ⚠️ 这里的参数顺序和 INPUT_TYPES 不一样是故意的：`模型预设` 在 INPUT_TYPES 里排第一
+        #    （决定前端控件的显示顺序），但这里必须留在末尾 —— Python 不允许有默认值的参数
+        #    排在无默认值的前面。ComfyUI 用关键字传参（getattr(obj, FUNCTION)(**inputs)），
+        #    所以顺序差异不影响调用。
+        # 模型预设只是个前端快捷填充：选中时前端已经把下面几个参数改好了，
+        # 这里不能再套一次 —— 否则用户选完预设又手改了步数，会被后端悄悄改回去。
         model = 模型
         latent = Latent图像
         work = latent.copy()
@@ -230,3 +343,35 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ToggleSampler": "采样器（一体）",
 }
+
+
+# ---- 给前端用的预设表接口 ----
+def _register_routes():
+    """把 MODEL_PRESETS 原样吐给前端，避免 JS 里再抄一份导致两边不同步。"""
+    try:
+        from aiohttp import web
+        from server import PromptServer
+
+        instance = getattr(PromptServer, "instance", None)
+        routes = getattr(instance, "routes", None) if instance is not None else None
+        if routes is None:
+            return
+
+        @routes.get("/toggle_pass/sampler_presets")
+        async def _sampler_presets(request):
+            return web.json_response({
+                "presets": MODEL_PRESETS,
+                "list": PRESET_LIST,
+                "default": PRESET_NONE,
+                "schemes": SCHEME_LIST,
+                # 老存档里存的是长名，前端加载时按这张表换成新名
+                "aliases": PRESET_ALIASES,
+                # 1.57 之前的老存档只有按位置的 widgets_values，用这张表按名字重新对应
+                "legacyWidgetOrder": LEGACY_WIDGET_ORDER,
+            })
+    except Exception:
+        # 独立导入 / 无 server 模块时静默跳过，不影响节点本身
+        return
+
+
+_register_routes()

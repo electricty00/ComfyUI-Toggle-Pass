@@ -35,7 +35,54 @@ CLIP_TYPE_MAP = {
     # Krea-2 专用：TE 是 Qwen3-VL-4B（12 层 tap），与 Qwen-Image 的 8B 不是一回事，
     # 选错会建出通用 qwen3vl，conditioning 宽度对不上
     "krea2": comfy.sd.CLIPType.KREA2,
+    # ★ 下面两个和 krea2 共用 Qwen3-VL-4B 的权重文件，但**取层方式完全不同**，
+    #   选错不是效果差，而是 conditioning 维度直接对不上（跑不起来或全废）：
+    #     krea2      → [2,5,8,...,35] 每 3 层取满全程 → 12 层 × 2560
+    #     fibo2      → [5,7,9,...,35] 每 2 层只截中段 → 6 组 × 7680
+    #     moss_image → TE 是 Qwen3.5-**9B**（不是 VL-4B），无 tap，取 last hidden state
+    "fibo2": comfy.sd.CLIPType.FIBO2,
+    "moss_image": comfy.sd.CLIPType.MOSS_IMAGE,
 }
+
+# ↑ 以上是「常用 + 有专门说明」的项，顺序不能动（widgets_values 按位置序列化）。
+# ↓ 以下是「兜底全量」：把 ComfyUI 当前支持、但上面没登记的类型补齐，
+#   免得遇到少见模型时下拉里找不到、只能去翻 comfy/sd.py。
+#   实现要点：用 getattr 取枚举 —— 旧版 ComfyUI 少了某个成员时只是跳过该项，
+#   不会在 import 阶段抛 AttributeError 把整个插件带崩。
+#   全部**追加在末尾**，已有项的位置不变，老工作流照旧。
+_CLIP_TYPE_EXTRA = [
+    ("stable_audio", "STABLE_AUDIO"),
+    ("hunyuan_dit", "HUNYUAN_DIT"),
+    ("hunyuan_video", "HUNYUAN_VIDEO"),
+    ("hunyuan_video_15", "HUNYUAN_VIDEO_15"),
+    ("hunyuan_image", "HUNYUAN_IMAGE"),
+    ("pixart", "PIXART"),
+    ("cosmos", "COSMOS"),
+    ("lumina2", "LUMINA2"),
+    ("chroma", "CHROMA"),
+    ("ace", "ACE"),
+    ("omnigen2", "OMNIGEN2"),
+    ("ovis", "OVIS"),
+    ("kandinsky5", "KANDINSKY5"),
+    ("kandinsky5_image", "KANDINSKY5_IMAGE"),
+    ("newbie", "NEWBIE"),
+    ("longcat_image", "LONGCAT_IMAGE"),
+    ("cogvideox", "COGVIDEOX"),
+    ("lens", "LENS"),
+    ("pixeldit", "PIXELDIT"),
+    ("ideogram4", "IDEOGRAM4"),
+    ("boogu", "BOOGU"),
+    ("joyimage", "JOYIMAGE"),
+    ("mage", "MAGE"),
+    ("minimax", "MINIMAX"),
+    ("yue2", "YUE2"),
+    ("flux3", "FLUX3"),
+]
+for _key, _enum_name in _CLIP_TYPE_EXTRA:
+    _v = getattr(comfy.sd.CLIPType, _enum_name, None)
+    if _v is not None and _key not in CLIP_TYPE_MAP:
+        CLIP_TYPE_MAP[_key] = _v
+del _key, _enum_name, _v
 
 # auto 检测用：supported_models 检测出的模型类 -> 对应的 CLIPType 枚举。
 # 注意 comfy.sd.load_clip 的 clip_type 参数是与 CLIPType 枚举比较的
@@ -46,8 +93,22 @@ _MODEL_CLASS_TO_CLIPTYPE = {
     "QwenImage21": comfy.sd.CLIPType.QWEN_IMAGE,
     "QwenImage": comfy.sd.CLIPType.QWEN_IMAGE,
     "Krea2": comfy.sd.CLIPType.KREA2,
+    "Fibo2": comfy.sd.CLIPType.FIBO2,
+    "MOSSImage": comfy.sd.CLIPType.MOSS_IMAGE,
     "Flux2": comfy.sd.CLIPType.FLUX2,
     "Flux": comfy.sd.CLIPType.FLUX,
+    # Z-Image（Lumina2 / NextDiT）的 TE 是 qwen_3_4b，ComfyUI 按「TE 类型」自动选
+    # comfy.text_encoders.z_image.te（见 comfy/sd.py 的 TEModel.QWEN3_4B 分支：
+    # 只要 clip_type 不是 flux/flux2 就走 z_image.te）。这里登记 stable_diffusion
+    # 只为让 auto 检测有个确定值、不打印「未登记映射」的告警。
+    # ⚠️ 手工选的时候**别选 flux / flux2**：2026-11-06 实测，同样 qwen_3_4b + 同样 unet，
+    #    flux → 文本编码器建成 Flux2TEModel_（Flux 系的 Klein 编码器），
+    #    stable_diffusion / qwen_image / auto → 都是 ZImageTEModel_（正确）。
+    #    建错类不报错，提示词编码全变，出图「能跑但不像 prompt」。
+    "ZImage": comfy.sd.CLIPType.STABLE_DIFFUSION,
+    # 实测 model_detection 对 Z-Image 权重返回的类名是父类 Lumina2（不是 ZImage），
+    # 所以这里两条都要登记，否则 auto 会打「未登记映射」并静默回落。
+    "Lumina2": comfy.sd.CLIPType.STABLE_DIFFUSION,
     "SD3": comfy.sd.CLIPType.SD3,
     "SDXL": comfy.sd.CLIPType.STABLE_DIFFUSION,
     "SD15": comfy.sd.CLIPType.STABLE_DIFFUSION,
@@ -61,6 +122,56 @@ _MODEL_CLASS_TO_CLIPTYPE = {
     "HiDream": comfy.sd.CLIPType.HIDREAM,
 }
 
+# 只登记「clip_type 真的改变结果」、且继承链救不回来的类。
+# 判断依据是 comfy/sd.py 的 load_text_encoder_state_dicts：clip_type 只在
+# **同一个 TE 权重能走多条路**的分支里起作用，其余情况它被忽略 ——
+# 所以不必给 108 个类都登记，只补歧义区。
+# 典型歧义：Qwen3-VL-8B（QWEN_IMAGE / IDEOGRAM4 / BOOGU / JOYIMAGE）、
+#           Qwen3-VL-4B（KREA2 / FIBO2 / FLUX3 / MAGE / MINIMAX / FLUX）、
+#           T5-XXL（SD3 / LTXV / WAN / CHROMA / PIXART / COGVIDEOX / MOCHI）、
+#           CLIP-G（SD3 / STABLE_CASCADE / HIDREAM）。
+# 用 getattr：旧版 ComfyUI 少成员时跳过该项，不会在 import 阶段把插件带崩。
+_EXTRA_MODEL_CLASS_TO_CLIPTYPE = [
+    ("Flux3", "FLUX3"),
+    ("HunyuanVideo15", "HUNYUAN_VIDEO_15"),
+    ("HunyuanVideo15_SR_Distilled", "HUNYUAN_VIDEO_15"),
+    ("HunyuanImage21", "HUNYUAN_IMAGE"),
+    ("HunyuanImage21Refiner", "HUNYUAN_VIDEO"),
+    ("HunyuanDiT", "HUNYUAN_DIT"),
+    ("HunyuanDiT1", "HUNYUAN_DIT"),
+    ("Chroma", "CHROMA"),
+    ("ChromaRadiance", "CHROMA"),
+    ("CogVideoX_T2V", "COGVIDEOX"),
+    ("CogVideoX_I2V", "COGVIDEOX"),
+    ("CogVideoX_Inpaint", "COGVIDEOX"),
+    ("GenmoMochi", "MOCHI"),
+    ("Ideogram4", "IDEOGRAM4"),
+    ("Boogu", "BOOGU"),
+    ("JoyImage", "JOYIMAGE"),
+    ("MageFlow", "MAGE"),
+    ("MiniMaxH3", "MINIMAX"),
+    ("LongCatImage", "LONGCAT_IMAGE"),
+    ("PixelDiTT2I", "PIXELDIT"),
+    ("PiD", "PIXELDIT"),
+    ("PixArtAlpha", "PIXART"),
+    ("PixArtSigma", "PIXART"),
+    ("Stable_Cascade_B", "STABLE_CASCADE"),
+    ("Stable_Cascade_C", "STABLE_CASCADE"),
+    ("SDXLRefiner", "STABLE_DIFFUSION"),
+]
+for _mc, _enum_name in _EXTRA_MODEL_CLASS_TO_CLIPTYPE:
+    _v = getattr(comfy.sd.CLIPType, _enum_name, None)
+    if _v is not None and _mc not in _MODEL_CLASS_TO_CLIPTYPE:
+        _MODEL_CLASS_TO_CLIPTYPE[_mc] = _v
+del _mc, _enum_name, _v
+
+# WAN 有 17 个类（WAN21_T2V / WAN22_S2V / WAN_Animate2 …），逐个登记会随上游发版漂移。
+# 它们都是 T5-XXL，且 clip_type 不选 wan 就会掉进 else 建成 **Mochi** 的 TE
+# （comfy/sd.py: TEModel.T5_XXL 分支的 else 就是 mochi_te），所以按前缀兜住。
+_CLIP_TYPE_PREFIX_RULES = [
+    ("WAN", comfy.sd.CLIPType.WAN),
+]
+
 # 模型类 -> 文本编码器类名前缀（用于分体模式的 CLIP 校验）。
 # 只登记「实测确认过类名」的几类；没登记的模型不做校验，宁可漏报也不误报。
 # ⚠️ 这不是等价关系：QwenImage(v1, Qwen2.5-VL) 与 QwenImage21(Qwen3-VL-8B) 的 TE 类
@@ -69,9 +180,42 @@ _MODEL_CLASS_TO_TE_PREFIX = {
     "QwenImage21": "QwenImage21TEModel",
     "QwenImage": "QwenImageTEModel",
     "Krea2": "Krea2TEModel",
+    # fibo2 用 Qwen3-VL-4B 的 15 层中段，类名 Fibo2TEModel_；
+    # moss_image 用 Qwen3.5-9B，类名 MOSSImageTEModel_ —— 两者都不能用 Krea2TEModel_ 代替
+    "Fibo2": "Fibo2TEModel",
+    "MOSSImage": "MOSSImageTEModel",
     "Flux2": "Flux2TEModel",
     "Flux": "FluxTEModel",
+    "ZImage": "ZImageTEModel",
 }
+
+
+def _resolve_clip_type(model):
+    """按「已加载的模型对象」推导 CLIPType（auto 用）。返回 (枚举|None, 命中方式)。
+
+    三层查找：精确表 → 继承链 → 前缀规则。
+    之所以不用一张大表覆盖全部 108 个 supported_models 类：comfy/sd.py 里
+    clip_type 只在「同一个 TE 权重能走多条路」的分支才起作用（T5-XXL 的
+    SD3/LTXV/WAN/CHROMA/PIXART/COGVIDEOX/MOCHI、CLIP-G 的 SD3/CASCADE/HIDREAM、
+    Qwen3-VL 的 QWEN_IMAGE/KREA2/FIBO2/…），其余模型它根本不参与判断。
+    所以精确表只登记歧义项，子类靠继承链（FluxSchnell→Flux）、变体靠前缀
+    （WAN21_I2V→WAN*）兜住，上游加新类也不会突然全错。
+    """
+    # ⚠️ load_unet 返回的是 ModelPatcher，真正的模型对象在 .model 里。
+    #    直接 type(model) 会永远拿到 ModelPatcher —— 实测会让所有模型都推不出来。
+    inner = getattr(model, "model", None) or model
+    cls = type(inner)
+    ct = _MODEL_CLASS_TO_CLIPTYPE.get(cls.__name__)
+    if ct is not None:
+        return ct, f"精确匹配 {cls.__name__}"
+    for base in cls.__mro__[1:]:
+        ct = _MODEL_CLASS_TO_CLIPTYPE.get(base.__name__)
+        if ct is not None:
+            return ct, f"继承链 {cls.__name__} → {base.__name__}"
+    for prefix, ct in _CLIP_TYPE_PREFIX_RULES:
+        if cls.__name__.startswith(prefix):
+            return ct, f"前缀规则 {cls.__name__} → {prefix}*"
+    return None, ""
 
 
 def _detect_clip_type(unet_name):
@@ -229,20 +373,43 @@ def _te_class_name(clip):
         return None
 
 
-def _check_clip_match(model_cls, clip):
+def _expected_te_from_model(model):
+    """向模型自己询问「我该配哪个文本编码器」，拿不到返回 None。
+
+    comfy 的模型 config 自带 clip_target()，返回的 (tokenizer, clip) 就是这套
+    权重官方配对的**正确答案**，与我们这张手工表无关。实测 supported_models
+    里 106/108 个类能这样拿到类名（Flux2 / HiDream 等返回 None，退回手工表）。
+    只用作「手工表没登记时」的补充，不覆盖已实测过的条目。
+    """
+    try:
+        cfg = getattr(getattr(model, "model", None), "model_config", None)
+        if cfg is None:
+            return None
+        clip_cls = getattr(cfg.clip_target(), "clip", None)
+        return clip_cls.__name__ if isinstance(clip_cls, type) else None
+    except Exception:
+        return None
+
+
+def _check_clip_match(model_cls, clip, model=None):
     """校验分体模式下 CLIP 文件是否与模型配套。
 
     背景：换 CLIP 文件会改变 ComfyUI 建出的文本编码器类，日志实测出现过
     QwenImage21TEModel_(6018MB，正确) / QwenImageTEModel_(7910MB，v1) /
     Flux2TEModel_(8262MB，完全不对)。建错了 conditioning 就是废的，
     表现却是「跑得通但什么都不生效」，极难自查 —— 所以这里主动报出来。
-    返回 {"te":..., "expect":..., "ok": True/False/None}（None = 该模型不做校验）。
+    返回 {"te":..., "expect":..., "ok": True/False/None, "src":...}
+    （ok=None = 该模型不做校验）。
     """
     te = _te_class_name(clip)
     expect = _MODEL_CLASS_TO_TE_PREFIX.get(model_cls)
+    src = "手工表"
+    if expect is None and model is not None:
+        expect = _expected_te_from_model(model)
+        src = "模型自述"
     if not te or not expect:
-        return {"te": te, "expect": expect, "ok": None}
-    return {"te": te, "expect": expect, "ok": te.startswith(expect)}
+        return {"te": te, "expect": expect, "ok": None, "src": src}
+    return {"te": te, "expect": expect, "ok": te.startswith(expect), "src": src}
 
 
 # 模型类 -> 换 VAE 的具体建议。只登记实测确认过的场景，避免给出误导性推荐。
@@ -251,6 +418,16 @@ _VAE_HINT = {
                    "qwen_image_vae.safetensors 是 Qwen-Image 1.0 的（16 通道 / 3 维），两者不通用。",
     "Krea2": "Krea-2 用的是 qwen_image_vae.safetensors（16 通道 / 3 维 / 8x）；"
              "别选 qwen_image_2.1_vae_bf16（64 通道 / 2 维），那个是 Qwen-Image-2.1 的。",
+    # Fibo2 / MOSS-Image 共用 Flux2 的 latent（32ch + bn -> 128ch / 16x），
+    # VAE 必须是 flux2-vae 系列，换成 qwen/其它系列解码就会炸
+    "Fibo2": "FIBO 2.0 用的是 flux2-vae.safetensors（128 通道 / 16x）；"
+             "别选 qwen_image_vae 或 qwen_image_2.1_vae_bf16，通道数完全不同。",
+    "MOSSImage": "MOSS-Image 同样走 Flux2 latent，用 flux2-vae_small.safetensors"
+                 "（官方编辑模板）或 flux2-vae.safetensors 都可以；别选 qwen 系列 VAE。",
+    # Z-Image 的 latent_format = Flux（16 通道 / 8x），VAE 就是 Flux 的 ae.safetensors。
+    # qwen 系列 VAE 通道数碰巧也是 16，光看通道校验不出来，但两者不是同一套，别混用。
+    "ZImage": "Z-Image 的 latent_format 是 Flux（16 通道 / 8×），VAE 用 ae.safetensors；"
+              "qwen_image_vae 通道数碰巧也是 16，校验查不出来，但别拿它顶替。",
 }
 
 
@@ -397,7 +574,7 @@ class ToggleUnifiedLoader:
                   "（实测与官方节点逐像素一致），只是效果会比全精度底座更『糊』一些；"
                   "风格特别细腻的 LoRA 可能不易看出，想要更干净可换 bf16/fp16 一体包。")
         # 一体包也会自动猜 CLIP，同样校验一下（猜错时 conditioning 会整体失效）
-        self._clip_check = _check_clip_match(type(getattr(model, "model", None)).__name__, clip)
+        self._clip_check = _check_clip_match(type(getattr(model, "model", None)).__name__, clip, model)
         if self._clip_check.get("ok") is False:
             print(f"[ToggleUnifiedLoader] ⚠️ CLIP 校验：文本编码器建成 {self._clip_check['te']}"
                   f"（预期 {self._clip_check['expect']}），该 checkpoint 的 CLIP 可能与模型不配套")
@@ -423,13 +600,17 @@ class ToggleUnifiedLoader:
             clip_type_enum = CLIP_TYPE_MAP[clip_type]
             print(f"[ToggleUnifiedLoader] CLIP 类型: 手动指定 {clip_type}")
         else:
-            clip_type_enum = _MODEL_CLASS_TO_CLIPTYPE.get(model_cls)
+            clip_type_enum, how = _resolve_clip_type(model)
             if clip_type_enum is None:
-                print(f"[ToggleUnifiedLoader] 模型类 {model_cls} 未登记映射，"
-                      f"CLIP 类型默认使用 STABLE_DIFFUSION")
+                # 兜底。多数情况下无害：TE 权重唯一确定时 ComfyUI 根本不看 clip_type
+                # （这类模型占 supported_models 的三分之一，如 Anima/AuraFlow/Cosmos/Lens）。
+                # 真正会因此建错 TE 的只有 T5-XXL / Qwen3-VL / CLIP-G 那几族，
+                # 而它们都已在前两层命中；万一是上游新加的类，由下一步的 TE 校验兜住报出来。
+                print(f"[ToggleUnifiedLoader] 自动检测：模型类 {model_cls} 没有专门登记，"
+                      f"使用通用 CLIP 类型 STABLE_DIFFUSION（多数模型下这个值不参与判断）")
                 clip_type_enum = comfy.sd.CLIPType.STABLE_DIFFUSION
             else:
-                print(f"[ToggleUnifiedLoader] 自动检测 CLIP 类型: {model_cls} -> {clip_type_enum}")
+                print(f"[ToggleUnifiedLoader] 自动检测 CLIP 类型: {how} → {clip_type_enum.name}")
 
         # 3. 加载 CLIP
         clip_path = folder_paths.get_full_path("clip", clip_name)
@@ -437,11 +618,11 @@ class ToggleUnifiedLoader:
 
         # 3.1 校验文本编码器是否与模型配套。
         #     选错 CLIP 文件时 ComfyUI 会静静建出另一个 TE 类，跑得通但 conditioning 全废。
-        self._clip_check = _check_clip_match(model_cls, clip)
+        self._clip_check = _check_clip_match(model_cls, clip, model)
         if self._clip_check.get("ok") is False:
             print(f"[ToggleUnifiedLoader] ⚠️ CLIP 校验失败：模型是 {model_cls}，"
                   f"但文本编码器建成了 {self._clip_check['te']}"
-                  f"（预期 {self._clip_check['expect']}）。"
+                  f"（预期 {self._clip_check['expect']}，依据 {self._clip_check.get('src')}）。"
                   f"这个 CLIP 文件与模型不配套 → 提示词会被错误编码（跑得通但什么都不生效）。"
                   f"请更换 CLIP 文件，或检查『CLIP 类型』是否选对。")
         elif self._clip_check.get("te"):

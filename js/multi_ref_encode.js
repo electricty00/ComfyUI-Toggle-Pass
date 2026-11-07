@@ -89,7 +89,128 @@ function refreshNodeSize(node) {
     });
 }
 
+/* ---- 模型类型改名迁移 ----
+ * 2026-11-06：`SD / SDXL` 改名为 `SD / SDXL / Z-Image`（两者 latent 行为完全一样，
+ * Z-Image 就是「不接参考图的通用档」，合进一个名字里省得再开一项）。
+ * 旧工作流的 widgets_values 里存的是旧字面量，不在下拉选项里 → 前端会显示空白。
+ * 这里在加载时直接改值，用户看不到中间态。
+ * ⚠️ 后端 multi_ref_encode.py 有一份同样的表，两层都兜（第三方节点转存 / 手工改 JSON）。
+ */
+const MODEL_TYPE_MIGRATIONS = {
+    "SD / SDXL": "SD / SDXL / Z-Image",
+    "SD/SDXL": "SD / SDXL / Z-Image",
+    "SD / SDXL / z-image": "SD / SDXL / Z-Image",
+    "SD/SDXL/z-image": "SD / SDXL / Z-Image",
+    "SDXL": "SD / SDXL / Z-Image",
+    "SD 1.5": "SD / SDXL / Z-Image",
+    "Z-Image": "SD / SDXL / Z-Image",
+    "z-image": "SD / SDXL / Z-Image",
+    "ZImage": "SD / SDXL / Z-Image",
+};
+
+function migrateModelType(node) {
+    const w = (node.widgets || []).find(x => x.name === "模型类型");
+    if (!w || typeof w.value !== "string") return false;
+    const to = MODEL_TYPE_MIGRATIONS[w.value.trim()];
+    if (!to || to === w.value) return false;
+    console.log(`[Toggle-Pass] 模型类型 已迁移: "${w.value}" -> "${to}"`);
+    w.value = to;
+    return true;
+}
+
+/* ---- Ref Image Encode 输出顺序迁移 ----
+ * 2026-11-06：`negative` 从末尾挪到 `latent` 前面（纯排版，node 上好看）。
+ *   老布局 outputs = [conditioning, latent, negative]
+ *   新布局 outputs = [conditioning, negative, latent]
+ * ⚠️ 索引 1/2 的含义互换了，老工作流存在 JSON 里的 link.origin_slot 会指向错的输出口
+ *    （负面被当 latent、latent 被当负面，类型对不上直接断线）。
+ * 这里按 outputs[i].name 判断布局（不依赖存盘标记，幂等）：
+ *   - 检测到老布局 ⇒ 交换 1/2 号口的整个 output 元素（name/type/links 一起走）
+ *   - 每次都把 graph.links 的 origin_slot 对齐到当前 outputs 位置
+ */
+const OUT_ORDER_TAG = "negative_before_latent";
+
+// ① 只给槽位改名（幂等：新布局下不做任何事）。同步执行，抢在渲染连线之前。
+function renameOutputSlots(node) {
+    const outs = node?.outputs;
+    if (!outs || outs.length < 3) return false;
+    if (outs[1]?.name !== "latent" || outs[2]?.name !== "negative") return false;
+
+    // ⚠️ 不能交换 outputs 数组元素本身 —— ComfyUI 加载完会按 link.origin_slot
+    //    重新往 outputs[i].links 里填，换掉的数组元素会被"按位置"填回旧连线。
+    //    只换 name/type，位置不变，等价于「给槽位改名」。
+    const nm = outs[1].name, tp = outs[1].type;
+    outs[1].name = outs[2].name; outs[1].type = outs[2].type;
+    outs[2].name = nm; outs[2].type = tp;
+    node.properties = node.properties || {};
+    node.properties.tp_outorder = OUT_ORDER_TAG;
+    console.log("[Toggle-Pass] Ref Image Encode 输出顺序已迁移: conditioning / negative / latent");
+    return true;
+}
+
+// ② 把连线按「类型语义」搬回正确槽位。幂等，可无限次重跑。
+//    LATENT → 2 号口(latent)，CONDITIONING → 1 号口(negative)；0 号口不参与。
+//    返回值：-1 = graph.links 还没建好（要继续重试）；>=0 = 本次改动的连线条数。
+function fixLinkSlots(node) {
+    if (!node) return 0;
+    const graph = node.graph || app?.graph;
+    const links = graph?.links;
+    if (!links) return -1;
+
+    // ★ 加载早期 graph.links 是空表（实测 200ms 时仍是空的，几百毫秒后才填满）
+    //   ⇒ 空表一律当「未就绪」，否则会在什么都没做的状态下提前收敛。
+    const empty = Array.isArray(links) ? links.length === 0 : Object.keys(links).length === 0;
+    if (empty) return -1;
+
+    let changed = 0;
+    const fix = (getSlot, setSlot, type, originId) => {
+        if (String(originId) !== String(node.id)) return;
+        const s = getSlot();
+        if (s !== 1 && s !== 2) return;            // 0 号口(conditioning)不参与
+        const want = type === "LATENT" ? 2 : 1;
+        if (s !== want) { setSlot(want); changed++; }
+    };
+
+    if (Array.isArray(links)) {
+        // 老式：[[id, origin_id, origin_slot, target_id, target_slot, type], ...]
+        for (const l of links) {
+            if (!l) continue;
+            fix(() => l[2], (v) => { l[2] = v; }, l[5], l[1]);
+        }
+    } else {
+        // 新版：{[id]: LLink}，origin_slot 是 getter/setter，直接赋值有效
+        for (const lk of Object.values(links)) {
+            if (!lk) continue;
+            fix(() => lk.origin_slot, (v) => { lk.origin_slot = v; }, lk.type, lk.origin_id);
+        }
+    }
+    return changed;
+}
+
+// ③ 阶梯重试直到收敛。graph.links 的就绪时机在不同机器/图规模下差别很大，
+//    单靠一帧 rAF 兜底会漏（这一版就栽在这：name 换了、slot 没换 ⇒ 用户看到「连错了」）。
+const OUT_ORDER_RETRY_MS = [0, 50, 120, 260, 550, 1000, 1800, 3000];
+
+function scheduleOutputOrderFix(node) {
+    let i = 0;
+    const step = () => {
+        if (!node || !node.graph) return;          // 节点已被移除/图已换
+        const r = fixLinkSlots(node);
+        if (r === 0) return;                       // 已收敛，收手，不再干扰用户手动接线
+        i++;
+        if (i < OUT_ORDER_RETRY_MS.length) setTimeout(step, OUT_ORDER_RETRY_MS[i]);
+    };
+    setTimeout(step, OUT_ORDER_RETRY_MS[0]);
+}
+
+// 兼容旧调用点
+function migrateOutputOrder(node) {
+    renameOutputSlots(node);
+    return fixLinkSlots(node);
+}
+
 function applyModelVisibility(node) {
+    migrateModelType(node);              // 先把旧名字换成新名字，再决定显隐
     const get = n => (node.widgets || []).find(w => w.name === n);
     const mw = get("模型类型");
     const model = mw ? mw.value : null;
@@ -137,6 +258,12 @@ app.registerExtension({
         const origConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
             origConfigure?.apply(this, arguments);
+            // 输出口改名必须抢在画布渲染连线之前（同步执行）；
+            // 连线归位要等 graph.links 建好，交给阶梯重试（只等一帧太早，实测那时 links 还是空的）。
+            if (nodeData.name === "DynamicRefImageEncode") {
+                renameOutputSlots(this);
+                scheduleOutputOrderFix(this);
+            }
             requestAnimationFrame(() => {
                 const w = this.widgets?.find(w => w.name === cfg.widget);
                 if (w) syncInputs(this, cfg, Math.max(1, Math.min(cfg.max, w.value || 1)));

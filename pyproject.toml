@@ -1,0 +1,25 @@
+[project]
+name = "comfyui-toggle-pass"
+version = "1.0.0"
+description = "Toggle-switch ComfyUI nodes: bypass any node without rewiring, multi-reference image editing, unified model loader, one-piece sampler with presets, and a built-in pose reference library."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Clever", url = "https://github.com/electricty00" }]
+keywords = ["comfyui", "comfyui-custom-node", "toggle", "image-editing", "reference-image", "pose"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Graphics",
+]
+
+# 运行时依赖由 ComfyUI 本体提供，不在这里重复声明，避免版本冲突。
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/electricty00/ComfyUI-Toggle-Pass"
+Issues = "https://github.com/electricty00/ComfyUI-Toggle-Pass/issues"
+
+[tool.comfy]
+# 留在 git 安装模式（不发布到 Comfy Registry），所以不写 PublisherId / DisplayName。
+# 想让 ComfyUI-Manager 把它当成可更新节点而不报错，这一节留空即可。
